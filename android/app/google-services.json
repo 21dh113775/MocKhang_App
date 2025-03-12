@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "495594370579",
+    "project_id": "mockhangapp",
+    "storage_bucket": "mockhangapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:495594370579:android:c098dbda3c20e66b1ab1e6",
+        "android_client_info": {
+          "package_name": "com.example.mockhang_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "495594370579-5ghu9s06dt1p8duv3kdhsc38rnmrcpjk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3dI6k8r1Jjp3vxYKyH2XfIYb20sZJJs4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "495594370579-5ghu9s06dt1p8duv3kdhsc38rnmrcpjk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "495594370579-g9nq4cj5o77lp9t67e4l72nmi5ce7lfu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mockhangApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
