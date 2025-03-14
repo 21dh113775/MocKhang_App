@@ -1,6 +1,6 @@
+import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/product_model.dart';
 
 class ProductDatabase {
   static final ProductDatabase instance = ProductDatabase._init();
@@ -64,12 +64,20 @@ class ProductDatabase {
 
   Future<int> updateProduct(Product product) async {
     final db = await database;
-    return await db.update(
+
+    // Debugging print statements to check if data is correct
+    print('Updating product: ${product.toMap()}');
+
+    // Update the product and check if it worked
+    int result = await db.update(
       'products',
       product.toMap(),
       where: 'id = ?',
       whereArgs: [product.id],
     );
+
+    print('Update result: $result');
+    return result;
   }
 
   Future<int> deleteProduct(int id) async {

@@ -1,0 +1,8 @@
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.csproj.AssemblyReference.cache
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.GeneratedMSBuildEditorConfig.editorconfig
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.AssemblyInfoInputs.cache
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.AssemblyInfo.cs
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.csproj.CoreCompileInputs.cache
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.MvcApplicationPartsAssemblyInfo.cs
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.MvcApplicationPartsAssemblyInfo.cache
+D:\Project\MocKhang\mockhang_app\backend\ProductsApi\obj\Debug\net9.0\ProductsApi.sourcelink.json

@@ -227,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20.0),
                   // Sử dụng logo nếu có
-                  child: Image.asset('assets/logo.png', height: 220),
+                  child: Image.asset('assets/logo-mockhang.png', height: 220),
                 ),
                 const SizedBox(height: 10),
                 const Text(

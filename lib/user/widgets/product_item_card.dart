@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
-import 'package:mockhang_app/admin/pages/product/product_detail_page.dart';
+import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
 
-class ProductItemCard extends StatelessWidget {
+class ProductItemCard extends StatefulWidget {
   final Product product;
   final VoidCallback? onTap;
 
@@ -11,72 +11,242 @@ class ProductItemCard extends StatelessWidget {
     : super(key: key);
 
   @override
+  _ProductItemCardState createState() => _ProductItemCardState();
+}
+
+class _ProductItemCardState extends State<ProductItemCard> {
+  bool _isFavorite = false;
+
+  void _addToCart(BuildContext context) {
+    // TODO: Implement adding to cart logic
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: Colors.brown.shade800,
+        content: Row(
+          children: [
+            const Icon(Icons.shopping_cart_checkout, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Đã thêm ${widget.product.name} vào giỏ hàng',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'XEM',
+          textColor: const Color.fromARGB(255, 255, 149, 0),
+          onPressed: () {
+            Navigator.pushNamed(context, '/cart');
+          },
+        ),
+      ),
+    );
+  }
+
+  void _toggleFavorite() {
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+
+    // TODO: Implement saving to favorites logic
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor:
+            _isFavorite ? Colors.red.shade800 : Colors.grey.shade800,
+        content: Row(
+          children: [
+            Icon(
+              _isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _isFavorite
+                    ? 'Đã thêm vào danh sách yêu thích'
+                    : 'Đã xóa khỏi danh sách yêu thích',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool isLowStock = widget.product.stock <= 5;
+
     return Card(
-      elevation: 4,
+      elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(8),
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.all(6),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
         onTap:
-            onTap ??
+            widget.onTap ??
             () {
-              // Default navigation tới trang chi tiết
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ProductDetailPage(product: product),
+                  builder:
+                      (_) => ProductDetailPageUser(product: widget.product),
                 ),
               );
             },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ảnh + Hero
-            Hero(
-              tag: 'product_${product.id}',
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
+            // Image section with badges
+            Stack(
+              children: [
+                // Product image
+                Hero(
+                  tag: 'product_${widget.product.id}',
+                  child: SizedBox(
+                    height: 150,
+                    width: double.infinity,
+                    child: _loadImage(),
+                  ),
                 ),
-                child: _buildImageWidget(),
-              ),
+
+                // Favorite button
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: Colors.white.withOpacity(0.8),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: _toggleFavorite,
+                      customBorder: const CircleBorder(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color:
+                              _isFavorite ? Colors.red : Colors.grey.shade700,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Low stock badge
+                if (isLowStock)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Sắp hết hàng',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            // Thông tin sản phẩm
+
+            // Product info section
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Tên sản phẩm
+                  // Product name
                   Text(
-                    product.name,
-                    maxLines: 1, // Giới hạn 1 dòng
+                    widget.product.name,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Giá
-                  Text(
-                    '${_formatCurrency(product.price)} đ',
-                    maxLines: 1, // Giới hạn 1 dòng
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  // Stock
-                  Text(
-                    'Còn lại: ${product.stock}',
-                    maxLines: 1, // Giới hạn 1 dòng
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  const SizedBox(height: 6),
+
+                  // Price with currency
+                  Row(
+                    children: [
+                      Text(
+                        '${_formatCurrency(widget.product.price)} đ',
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Stock indicator
+                      Text(
+                        'Còn: ${widget.product.stock}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              isLowStock
+                                  ? Colors.red.shade700
+                                  : Colors.grey.shade700,
+                          fontWeight:
+                              isLowStock ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Add to cart button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 34,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _addToCart(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.brown,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_shopping_cart, size: 18),
+                      label: const Text(
+                        'Thêm vào giỏ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -87,22 +257,34 @@ class ProductItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImageWidget() {
-    // Kiểm tra xem imageUrl là mạng hay local
-    if (product.imageUrl.startsWith('http') ||
-        product.imageUrl.startsWith('https')) {
+  Widget _loadImage() {
+    if (widget.product.imageUrl.startsWith('http') ||
+        widget.product.imageUrl.startsWith('https')) {
       return Image.network(
-        product.imageUrl,
-        height: 160,
-        width: double.infinity,
+        widget.product.imageUrl,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey.shade100,
+            child: Center(
+              child: CircularProgressIndicator(
+                value:
+                    loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                color: Colors.brown,
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        },
       );
     } else {
       return Image.file(
-        File(product.imageUrl),
-        height: 160,
-        width: double.infinity,
+        File(widget.product.imageUrl),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
       );
@@ -111,18 +293,15 @@ class ProductItemCard extends StatelessWidget {
 
   Widget _buildErrorImage() {
     return Container(
-      height: 160,
-      width: double.infinity,
-      color: Colors.grey[300],
-      alignment: Alignment.center,
+      color: Colors.grey.shade200,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.broken_image, size: 40, color: Colors.grey[600]),
+          Icon(Icons.image_not_supported, size: 30, color: Colors.grey[600]),
           const SizedBox(height: 4),
           Text(
-            'Failed to Load Image',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            'Lỗi tải hình ảnh',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
         ],
       ),

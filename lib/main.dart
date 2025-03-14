@@ -33,7 +33,6 @@ void main() async {
           create:
               (context) => ProductProvider(ProductRepository(productDatabase)),
         ),
-        // **📌 Providers cho danh mục sản phẩm**
         ChangeNotifierProvider(
           create:
               (context) =>
@@ -54,7 +53,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mockhang App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.brown, fontFamily: 'Roboto'),
+      theme: _customTheme(), // Apply the custom theme
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
@@ -62,8 +61,28 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       themeMode: ThemeMode.system,
-      initialRoute: '/login', // Đặt trang đăng nhập là trang đầu tiên
-      routes: appRoutes, // Sử dụng các route đã định nghĩa
+      initialRoute: '/login',
+      routes: appRoutes,
+    );
+  }
+
+  // Custom theme definition
+  ThemeData _customTheme() {
+    return ThemeData(
+      buttonTheme: ButtonThemeData(
+        buttonColor: Colors.brown, // Brown button color
+        textTheme: ButtonTextTheme.primary, // White text on the button
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.brown, // Text color
+        ),
+      ),
+      fontFamily: 'Roboto',
+      colorScheme: ColorScheme.fromSwatch(
+        primarySwatch: Colors.brown,
+      ).copyWith(background: Colors.white),
     );
   }
 }
@@ -91,31 +110,25 @@ class AuthWrapper extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.active) {
           final User? user = snapshot.data;
 
-          // Nếu người dùng chưa đăng nhập
           if (user == null) {
             return const LoginScreen();
           }
 
-          // Kiểm tra nếu là admin local
           if (_authService.isLocalAdminLoggedIn) {
             return AdminHomeScreen();
           }
 
-          // Kiểm tra nếu user là admin từ Firebase
           return FutureBuilder<bool>(
             future: _authService.isCurrentUserAdmin(),
             builder: (context, adminSnapshot) {
               if (adminSnapshot.connectionState == ConnectionState.done) {
                 if (adminSnapshot.data == true) {
-                  // Nếu là admin, chuyển đến trang AdminHomeScreen
                   return AdminHomeScreen();
                 } else {
-                  // Nếu không phải admin, chuyển đến trang HomeScreen
                   return const HomeScreen();
                 }
               }
 
-              // Đang kiểm tra quyền admin
               return const Scaffold(
                 body: Center(
                   child: Column(
@@ -132,7 +145,6 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // Hiển thị màn hình loading khi đang kết nối
         return const Scaffold(
           body: Center(
             child: Column(

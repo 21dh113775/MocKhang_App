@@ -6,6 +6,7 @@ import 'package:mockhang_app/auth/signup_screen.dart';
 import 'package:mockhang_app/user/pages/categories_page.dart';
 import 'package:mockhang_app/user/pages/discount_page_user.dart';
 import 'package:mockhang_app/user/pages/home_screen.dart';
+import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
 
 Map<String, WidgetBuilder> appRoutes = {
   "/login": (context) => LoginScreen(),

@@ -6,8 +6,9 @@ import 'package:mockhang_app/admin/pages/account_page.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
 import 'package:mockhang_app/user/pages/cart_page.dart';
-import 'package:mockhang_app/user/pages/contact_page.dart';
+import 'package:mockhang_app/user/pages/consultation_page.dart';
 import 'package:mockhang_app/user/pages/discount_page_user.dart';
+import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
 import 'package:mockhang_app/user/widgets/bottom_nav_bar_widget.dart';
 import 'package:mockhang_app/user/widgets/category_item_card.dart'
     show CategoryItemCard;
@@ -50,7 +51,7 @@ class _HomePageState extends State<HomeScreen> {
       'route': '/collection',
     },
     {
-      'image': 'assets/banner2.png',
+      'image': 'assets/banner.png',
       'title': 'Miễn phí vận chuyển',
       'subtitle': 'Cho đơn hàng trên 500.000đ',
       'route': '/shipping',
@@ -71,7 +72,7 @@ class _HomePageState extends State<HomeScreen> {
   final List<Widget> _pages = [
     Container(), // Placeholder cho trang chủ
     DiscountPageUser(), // Trang Khuyến Mãi
-    ContactPage(), // Trang Liên Hệ
+    ConsultationPage(), // Trang Liên Hệ
     CartPage(), // Trang Giỏ Hàng
     AccountPage(), // Trang Tài Khoản
   ];
@@ -176,6 +177,10 @@ class _HomePageState extends State<HomeScreen> {
                 return Builder(
                   builder: (BuildContext context) {
                     return GestureDetector(
+                      onTap: () {
+                        // Xử lý khi nhấn vào banner
+                        Navigator.pushNamed(context, banner['route']);
+                      },
                       child: Container(
                         width: MediaQuery.of(context).size.width,
                         margin: const EdgeInsets.symmetric(horizontal: 5.0),
@@ -301,24 +306,40 @@ class _HomePageState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Danh mục',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Danh mục sản phẩm',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
               ),
-              TextButton(
+              TextButton.icon(
                 onPressed: () {
                   // Điều hướng đến trang tất cả danh mục
                   Navigator.pushNamed(context, '/categories');
                 },
-                child: const Text(
-                  'Xem tất cả',
-                  style: TextStyle(color: Colors.brown),
-                ),
+                icon: const Icon(Icons.arrow_forward, size: 16),
+                label: const Text('Xem tất cả'),
+                style: TextButton.styleFrom(foregroundColor: Colors.brown),
               ),
             ],
           ),
         ),
-        SizedBox(
-          height: 110,
+        Container(
+          height: 100, // Giảm chiều cao để tránh tràn
+          decoration: BoxDecoration(
+            color: Colors.brown.shade50,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 3,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 6), // Giảm padding
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
@@ -326,12 +347,15 @@ class _HomePageState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final cat = categories[index];
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                ), // Giảm padding giữa các card
                 child: CategoryItemCard(category: cat),
               );
             },
           ),
         ),
+        // Loại bỏ phần "Kéo để xem thêm" để giảm chiều cao
       ],
     );
   }
@@ -417,7 +441,7 @@ class _HomePageState extends State<HomeScreen> {
               TextButton(
                 onPressed: () {
                   // Điều hướng đến trang tất cả sản phẩm
-                  Navigator.pushNamed(context, '/products');
+                  Navigator.pushNamed(context, '/productsuser');
                 },
                 child: const Text(
                   'Xem tất cả',
@@ -442,7 +466,19 @@ class _HomePageState extends State<HomeScreen> {
           ),
           itemBuilder: (context, index) {
             final product = products[index];
-            return ProductItemCard(product: product);
+            return GestureDetector(
+              onTap: () {
+                // Chuyển đến trang chi tiết sản phẩm khi nhấn vào sản phẩm
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ProductDetailPageUser(product: product),
+                  ),
+                );
+              },
+              child: ProductItemCard(product: product),
+            );
           },
         ),
       ],

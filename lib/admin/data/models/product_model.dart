@@ -48,4 +48,28 @@ class Product {
       description: map['description'] ?? '',
     );
   }
+
+  Product copyWith({
+    int? id,
+    String? name,
+    String? category,
+    double? price,
+    int? stock,
+    int? soldQuantity,
+    int? importedQuantity,
+    String? imageUrl,
+    String? description,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      price: price ?? this.price,
+      stock: stock ?? this.stock,
+      soldQuantity: soldQuantity ?? this.soldQuantity,
+      importedQuantity: importedQuantity ?? this.importedQuantity,
+      imageUrl: imageUrl ?? this.imageUrl,
+      description: description ?? this.description,
+    );
+  }
 }

@@ -170,7 +170,7 @@ class _SignupScreenState extends State<SignupScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false, // Giữ nguyên cài đặt này
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color.fromARGB(0, 235, 232, 232),
         elevation: 0,
       ),
       body: SafeArea(
@@ -187,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 20.0),
                     child: Image.asset(
-                      'assets/logo.png',
+                      'assets/logo-mockhang.png',
                       height: 220,
                     ), // Logo của bạn
                   ),
