@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:mockhang_app/user/pages/home_screen.dart';
+import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
 

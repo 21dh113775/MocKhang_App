@@ -5,7 +5,7 @@ import 'package:mockhang_app/admin/adminscreen.dart';
 import 'package:mockhang_app/auth/auth_service.dart';
 import 'package:mockhang_app/auth/forgot_password_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
-import 'package:mockhang_app/user/pages/home_screen.dart';
+import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'package:animated_snack_bar/animated_snack_bar.dart'; // Thêm thư viện animated_snack_bar
 
 class LoginScreen extends StatefulWidget {

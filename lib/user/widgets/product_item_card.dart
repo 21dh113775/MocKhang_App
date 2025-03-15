@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
+import 'package:mockhang_app/admin/providers/cart_provider.dart';
 import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
+import 'package:provider/provider.dart';
 
 class ProductItemCard extends StatefulWidget {
   final Product product;
@@ -16,9 +18,12 @@ class ProductItemCard extends StatefulWidget {
 
 class _ProductItemCardState extends State<ProductItemCard> {
   bool _isFavorite = false;
+  int quantity = 1;
 
   void _addToCart(BuildContext context) {
-    // TODO: Implement adding to cart logic
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    cartProvider.addItem(widget.product, quantity);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -43,7 +48,7 @@ class _ProductItemCardState extends State<ProductItemCard> {
           label: 'XEM',
           textColor: const Color.fromARGB(255, 255, 149, 0),
           onPressed: () {
-            Navigator.pushNamed(context, '/cart');
+            Navigator.pushNamed(context, '/cart'); // Navigate to Cart page
           },
         ),
       ),

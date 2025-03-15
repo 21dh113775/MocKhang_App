@@ -140,7 +140,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onContactTap != null) {
                         onContactTap!();
                       } else {
-                        Navigator.pushNamed(context, '/contact');
+                        Navigator.pushNamed(context, '/consultation');
                       }
                     },
                   ),

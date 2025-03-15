@@ -3,14 +3,14 @@ import 'package:mockhang_app/admin/providers/product_provider.dart';
 import 'package:mockhang_app/user/widgets/product_item_card.dart';
 import 'package:provider/provider.dart';
 
-class ProductPage extends StatefulWidget {
-  const ProductPage({Key? key}) : super(key: key);
+class ProductPageUser extends StatefulWidget {
+  const ProductPageUser({Key? key}) : super(key: key);
 
   @override
-  _ProductPageState createState() => _ProductPageState();
+  _ProductPageUserState createState() => _ProductPageUserState();
 }
 
-class _ProductPageState extends State<ProductPage> {
+class _ProductPageUserState extends State<ProductPageUser> {
   bool _isLoading = true;
   String? _errorMessage;
 

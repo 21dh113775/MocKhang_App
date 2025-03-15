@@ -4,6 +4,8 @@ import 'package:mockhang_app/admin/data/models/product_model.dart';
 
 // Thêm import cho các thành phần cần thiết
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:mockhang_app/admin/providers/cart_provider.dart';
+import 'package:provider/provider.dart';
 
 class ProductDetailPageUser extends StatefulWidget {
   final Product product;
@@ -44,7 +46,11 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
   }
 
   void _addToCart() {
-    // TODO: Thêm logic thêm vào giỏ hàng
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+    // Thêm sản phẩm vào giỏ hàng
+    cartProvider.addItem(widget.product, quantity);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -54,6 +60,12 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
         duration: const Duration(seconds: 2),
       ),
     );
+
+    // Điều hướng đến giỏ hàng
+    Navigator.pushNamed(
+      context,
+      '/cart',
+    ); // Đảm bảo rằng '/cart' là route giỏ hàng của bạn
   }
 
   void _buyNow() {

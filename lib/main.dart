@@ -6,16 +6,20 @@ import 'package:mockhang_app/admin/data/data_sources/category_db.dart';
 import 'package:mockhang_app/admin/data/data_sources/product_db.dart';
 import 'package:mockhang_app/admin/data/repositories/category_repository.dart';
 import 'package:mockhang_app/admin/data/repositories/product_repository.dart';
+import 'package:mockhang_app/admin/providers/cart_provider.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/discount_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
 import 'package:mockhang_app/auth/auth_service.dart';
 import 'package:mockhang_app/auth/login_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
-import 'package:mockhang_app/user/pages/home_screen.dart';
+import 'package:mockhang_app/user/pages/cart/cart_page.dart';
+import 'package:mockhang_app/user/pages/consultation_page.dart';
+import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'package:mockhang_app/user/pages/categories_page.dart';
 import 'package:mockhang_app/user/pages/discount_page_user.dart';
 import 'package:mockhang_app/admin/pages/product/product_page.dart';
+import 'package:mockhang_app/user/pages/product_page.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
@@ -33,6 +37,9 @@ void main() async {
           create:
               (context) => ProductProvider(ProductRepository(productDatabase)),
         ),
+        ChangeNotifierProvider(
+          create: (_) => CartProvider(),
+        ), // Đảm bảo CartProvider đã được cung cấp
         ChangeNotifierProvider(
           create:
               (context) =>
@@ -95,6 +102,9 @@ Map<String, WidgetBuilder> appRoutes = {
   "/products": (context) => ProductPage(),
   "/categories": (context) => CategoriesPage(),
   "/discount": (context) => DiscountPageUser(),
+  "/cart": (context) => CartPage(),
+  "/products_user": (context) => ProductPageUser(),
+  "/consultation": (context) => ConsultationPage(),
 };
 
 class AuthWrapper extends StatelessWidget {
