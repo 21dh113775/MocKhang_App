@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:mockhang_app/admin/providers/cart_provider.dart';
-import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
+import 'package:mockhang_app/admin/providers/favorite_provider.dart';
+import 'package:mockhang_app/user/pages/home/productsection/product_detail_page_user.dart';
 import 'package:provider/provider.dart';
 
 class ProductItemCard extends StatefulWidget {
@@ -20,10 +21,31 @@ class _ProductItemCardState extends State<ProductItemCard> {
   bool _isFavorite = false;
   int quantity = 1;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Check if the widget is mounted before using context
+      if (mounted) {
+        final favoriteProvider = Provider.of<FavoriteProvider>(
+          context,
+          listen: false,
+        );
+        setState(() {
+          _isFavorite = favoriteProvider.isFavorite(widget.product);
+        });
+      }
+    });
+  }
+
   void _addToCart(BuildContext context) {
+    // Check if widget is mounted before using context
+    if (!mounted) return;
+
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     cartProvider.addItem(widget.product, quantity);
 
+    if (!mounted) return; // Check again before using context
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -56,11 +78,20 @@ class _ProductItemCardState extends State<ProductItemCard> {
   }
 
   void _toggleFavorite() {
+    if (!mounted) return;
+
+    final favoriteProvider = Provider.of<FavoriteProvider>(
+      context,
+      listen: false,
+    );
+    favoriteProvider.toggleFavorite(widget.product);
+
     setState(() {
       _isFavorite = !_isFavorite;
     });
 
-    // TODO: Implement saving to favorites logic
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -99,7 +130,7 @@ class _ProductItemCardState extends State<ProductItemCard> {
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.all(6),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
       child: InkWell(
         onTap:
             widget.onTap ??
@@ -107,22 +138,22 @@ class _ProductItemCardState extends State<ProductItemCard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (_) => ProductDetailPageUser(product: widget.product),
+                  builder: (_) => ProductDetailPage(product: widget.product),
                 ),
               );
             },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Image section with badges
             Stack(
               children: [
                 // Product image
                 Hero(
-                  tag: 'product_${widget.product.id}',
+                  tag: '${widget.product.id}_${UniqueKey()}',
                   child: SizedBox(
-                    height: 150,
+                    height: 130,
                     width: double.infinity,
                     child: _loadImage(),
                   ),
@@ -130,8 +161,8 @@ class _ProductItemCardState extends State<ProductItemCard> {
 
                 // Favorite button
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 4,
+                  right: 4,
                   child: Material(
                     color: Colors.white.withOpacity(0.8),
                     shape: const CircleBorder(),
@@ -139,12 +170,12 @@ class _ProductItemCardState extends State<ProductItemCard> {
                       onTap: _toggleFavorite,
                       customBorder: const CircleBorder(),
                       child: Padding(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         child: Icon(
                           _isFavorite ? Icons.favorite : Icons.favorite_border,
                           color:
                               _isFavorite ? Colors.red : Colors.grey.shade700,
-                          size: 20,
+                          size: 16,
                         ),
                       ),
                     ),
@@ -154,22 +185,22 @@ class _ProductItemCardState extends State<ProductItemCard> {
                 // Low stock badge
                 if (isLowStock)
                   Positioned(
-                    top: 8,
-                    left: 8,
+                    top: 4,
+                    left: 4,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 6,
+                        vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Sắp hết hàng',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 8,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -179,81 +210,81 @@ class _ProductItemCardState extends State<ProductItemCard> {
             ),
 
             // Product info section
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Product name
-                  Text(
-                    widget.product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Price with currency
-                  Row(
-                    children: [
-                      Text(
-                        '${_formatCurrency(widget.product.price)} đ',
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Spacer(),
-                      // Stock indicator
-                      Text(
-                        'Còn: ${widget.product.stock}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              isLowStock
-                                  ? Colors.red.shade700
-                                  : Colors.grey.shade700,
-                          fontWeight:
-                              isLowStock ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Add to cart button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 34,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _addToCart(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add_shopping_cart, size: 18),
-                      label: const Text(
-                        'Thêm vào giỏ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Product name
+                    Text(
+                      widget.product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+
+                    // Price with currency
+                    Text(
+                      '${_formatCurrency(widget.product.price)} đ',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Stock indicator
+                    Text(
+                      'Còn: ${widget.product.stock}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color:
+                            isLowStock
+                                ? Colors.red.shade700
+                                : Colors.grey.shade700,
+                        fontWeight:
+                            isLowStock ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+
+                    const Spacer(),
+
+                    // Add to cart button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 28,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _addToCart(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.brown,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_shopping_cart, size: 14),
+                        label: const Text(
+                          'Thêm vào giỏ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -302,11 +333,11 @@ class _ProductItemCardState extends State<ProductItemCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_not_supported, size: 30, color: Colors.grey[600]),
-          const SizedBox(height: 4),
+          Icon(Icons.image_not_supported, size: 24, color: Colors.grey[600]),
+          const SizedBox(height: 2),
           Text(
             'Lỗi tải hình ảnh',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(color: Colors.grey[600], fontSize: 10),
           ),
         ],
       ),

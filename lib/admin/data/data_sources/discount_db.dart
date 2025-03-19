@@ -17,7 +17,12 @@ class DiscountDatabase {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -29,9 +34,18 @@ class DiscountDatabase {
         value REAL NOT NULL,
         startDate INTEGER NOT NULL,
         endDate INTEGER NOT NULL,
-        imageUrl TEXT
+        code TEXT,
+        description TEXT,
+        barcode TEXT
       )
     ''');
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Thêm các cột mới nếu database đã tồn tại
+      await db.execute('ALTER TABLE discounts ADD COLUMN barcode TEXT');
+    }
   }
 
   Future close() async {

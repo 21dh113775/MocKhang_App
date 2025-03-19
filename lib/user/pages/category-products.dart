@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/category_model.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
-import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
-import 'package:mockhang_app/user/widgets/product_item_card.dart';
+import 'package:mockhang_app/user/pages/home/productsection/product_detail_page_user.dart';
+import 'package:mockhang_app/user/pages/product_item_card.dart';
 import 'package:provider/provider.dart';
 
 class CategoryProductsPage extends StatefulWidget {
@@ -134,7 +134,7 @@ class _CategoryProductsPageState extends State<CategoryProductsPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProductDetailPageUser(product: product),
+                  builder: (context) => ProductDetailPage(product: product),
                 ),
               );
             },
@@ -371,7 +371,7 @@ class ProductSearchDelegate extends SearchDelegate<Product?> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ProductDetailPageUser(product: product),
+                builder: (context) => ProductDetailPage(product: product),
               ),
             );
           },

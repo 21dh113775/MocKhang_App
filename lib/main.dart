@@ -6,46 +6,86 @@ import 'package:mockhang_app/admin/data/data_sources/category_db.dart';
 import 'package:mockhang_app/admin/data/data_sources/product_db.dart';
 import 'package:mockhang_app/admin/data/repositories/category_repository.dart';
 import 'package:mockhang_app/admin/data/repositories/product_repository.dart';
+import 'package:mockhang_app/admin/pages/notifications_page_admin.dart';
 import 'package:mockhang_app/admin/providers/cart_provider.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/discount_provider.dart';
+import 'package:mockhang_app/admin/providers/favorite_provider.dart';
+import 'package:mockhang_app/admin/providers/order_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
+import 'package:mockhang_app/admin/providers/user_provider.dart';
 import 'package:mockhang_app/auth/auth_service.dart';
 import 'package:mockhang_app/auth/login_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
+import 'package:mockhang_app/user/pages/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
+import 'package:mockhang_app/user/pages/checkout/checkout_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
+import 'package:mockhang_app/user/pages/home/favorite_page.dart';
 import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'package:mockhang_app/user/pages/categories_page.dart';
-import 'package:mockhang_app/user/pages/discount_page_user.dart';
+import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
 import 'package:mockhang_app/admin/pages/product/product_page.dart';
+import 'package:mockhang_app/user/pages/notifications_page_user.dart';
 import 'package:mockhang_app/user/pages/product_page.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+// Lazily initialize providers to avoid build-phase issues
+Future<void> initializeProviders() async {
+  // Initialize database instances first
   final productDatabase = ProductDatabase.instance;
   final categoryDatabase = CategoryDatabase.instance;
   await productDatabase.database;
   await categoryDatabase.database;
+
+  // Pre-initialize UserProvider to avoid build-phase issues
+  final userProvider = UserProvider();
+  await userProvider.initialize();
+
+  return;
+}
+
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize databases and providers before runApp
+  await initializeProviders();
+
+  // Run the app with providers
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
           create:
-              (context) => ProductProvider(ProductRepository(productDatabase)),
+              (context) =>
+                  ProductProvider(ProductRepository(ProductDatabase.instance)),
         ),
-        ChangeNotifierProvider(
-          create: (_) => CartProvider(),
-        ), // Đảm bảo CartProvider đã được cung cấp
+        ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(
           create:
-              (context) =>
-                  CategoryProvider(CategoryRepository(categoryDatabase)),
+              (context) => CategoryProvider(
+                CategoryRepository(CategoryDatabase.instance),
+              ),
         ),
         ChangeNotifierProvider(create: (context) => DiscountProvider()),
+        ChangeNotifierProvider(create: (context) => FavoriteProvider()),
+        ChangeNotifierProvider(create: (context) => OrderProvider()),
+        // Initialize UserProvider lazily to prevent build-phase notifications
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = UserProvider();
+            // Initialize in the next frame to avoid build-phase notifications
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              provider.initialize();
+            });
+            return provider;
+          },
+        ),
       ],
       child: MyApp(),
     ),
@@ -60,7 +100,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mockhang App',
       debugShowCheckedModeBanner: false,
-      theme: _customTheme(), // Apply the custom theme
+      theme: _customTheme(),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
@@ -77,13 +117,13 @@ class MyApp extends StatelessWidget {
   ThemeData _customTheme() {
     return ThemeData(
       buttonTheme: ButtonThemeData(
-        buttonColor: Colors.brown, // Brown button color
-        textTheme: ButtonTextTheme.primary, // White text on the button
+        buttonColor: Colors.brown,
+        textTheme: ButtonTextTheme.primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: Colors.brown, // Text color
+          backgroundColor: Colors.brown,
         ),
       ),
       fontFamily: 'Roboto',
@@ -105,14 +145,51 @@ Map<String, WidgetBuilder> appRoutes = {
   "/cart": (context) => CartPage(),
   "/products_user": (context) => ProductPageUser(),
   "/consultation": (context) => ConsultationPage(),
+  "/checkout": (context) => CheckoutPage(),
+  "/favorite": (context) => FavoritePage(),
+  "/account_page":
+      (context) => AccountPageUser(), // Fixed route name with slash
+  // Thêm route cho các trang Notifications
+  "/notifications_admin": (context) => NotificationsPageAdmin(),
+  "/notifications": (context) => NotificationsPageUser(),
 };
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({Key? key}) : super(key: key);
 
+  // Hàm kiểm tra quyền admin của người dùng
+  Future<void> checkAdminStatus() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        String? idToken = await user.getIdToken();
+
+        if (idToken != null) {
+          // Kiểm tra quyền admin nếu idToken không phải là null
+          if (idToken.contains('admin')) {
+            print("User is an admin");
+          } else {
+            print("User is not an admin");
+          }
+        } else {
+          print("ID Token is null");
+        }
+      }
+    } catch (e) {
+      print("Error checking admin status: $e");
+    }
+    ;
+  }
+
   @override
   Widget build(BuildContext context) {
     final AuthService _authService = AuthService();
+
+    // Access UserProvider with listen: false to avoid rebuild loops
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<UserProvider>(context, listen: false).initialize();
+    });
 
     return StreamBuilder<User?>(
       stream: _authService.authStateChanges,

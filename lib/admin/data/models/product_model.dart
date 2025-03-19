@@ -44,11 +44,12 @@ class Product {
       stock: map['stock'],
       soldQuantity: map['soldQuantity'] ?? 0,
       importedQuantity: map['importedQuantity'] ?? 0,
-      imageUrl: map['imageUrl'] ?? '',
+      imageUrl: map['imageUrl']?.toString() ?? '', // Đảm bảo không bị null
       description: map['description'] ?? '',
     );
   }
 
+  // Check if this is correctly implemented in your Product model
   Product copyWith({
     int? id,
     String? name,
@@ -70,6 +71,18 @@ class Product {
       importedQuantity: importedQuantity ?? this.importedQuantity,
       imageUrl: imageUrl ?? this.imageUrl,
       description: description ?? this.description,
+    );
+  }
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'] ?? '',
+      price: json['price'] is int ? json['price'].toDouble() : json['price'],
+      stock: json['stock'] ?? 0,
+      imageUrl: json['imageUrl'] ?? '',
+      category: json['category'] ?? '',
     );
   }
 }

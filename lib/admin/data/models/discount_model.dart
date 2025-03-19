@@ -5,9 +5,9 @@ class DiscountModel {
   final double value;
   final int startDate;
   final int endDate;
-  final String? imageUrl;
-  final String? code; // Thêm trường này
-  final String? description; // Thêm trường này
+  final String? code;
+  final String? description;
+  final String? barcode;
 
   DiscountModel({
     required this.id,
@@ -16,9 +16,9 @@ class DiscountModel {
     required this.value,
     required this.startDate,
     required this.endDate,
-    this.imageUrl,
-    this.code, // Thêm vào constructor
+    this.code,
     this.description,
+    this.barcode,
   });
 
   factory DiscountModel.fromJson(Map<String, dynamic> json) {
@@ -26,10 +26,12 @@ class DiscountModel {
       id: json['id'],
       name: json['name'],
       type: json['type'],
-      value: json['value'],
+      value: json['value'].toDouble(),
       startDate: json['startDate'],
       endDate: json['endDate'],
-      imageUrl: json['imageUrl'],
+      code: json['code'],
+      description: json['description'],
+      barcode: json['barcode'],
     );
   }
 
@@ -41,7 +43,9 @@ class DiscountModel {
       'value': value,
       'startDate': startDate,
       'endDate': endDate,
-      'imageUrl': imageUrl,
+      'code': code,
+      'description': description,
+      'barcode': barcode,
     };
   }
 
@@ -52,7 +56,9 @@ class DiscountModel {
     double? value,
     int? startDate,
     int? endDate,
-    String? imageUrl,
+    String? code,
+    String? description,
+    String? barcode,
   }) {
     return DiscountModel(
       id: id ?? this.id,
@@ -61,7 +67,17 @@ class DiscountModel {
       value: value ?? this.value,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
-      imageUrl: imageUrl ?? this.imageUrl,
+      code: code ?? this.code,
+      description: description ?? this.description,
+      barcode: barcode ?? this.barcode,
     );
+  }
+
+  // Phương thức kiểm tra tính hợp lệ của mã giảm giá
+  bool isValid() {
+    final currentDate = DateTime.now().millisecondsSinceEpoch;
+
+    // Kiểm tra xem mã giảm giá có trong thời gian hợp lệ không
+    return currentDate >= startDate && currentDate <= endDate;
   }
 }

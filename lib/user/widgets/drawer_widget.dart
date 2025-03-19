@@ -107,7 +107,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onWishlistTap != null) {
                         onWishlistTap!();
                       } else {
-                        Navigator.pushNamed(context, '/wishlist');
+                        Navigator.pushNamed(context, '/favorite');
                       }
                     },
                   ),

@@ -1,7 +1,6 @@
 // user/widgets/section_widgets.dart
 import 'package:flutter/material.dart';
 
-/// Utility class cung cấp các widget dùng chung cho các section trong ứng dụng
 class SectionWidgets {
   /// Widget hiển thị khi đang tải dữ liệu
   static Widget buildLoadingSection(String title) {

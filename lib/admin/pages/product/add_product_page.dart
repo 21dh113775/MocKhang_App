@@ -18,7 +18,7 @@ class _AddProductPageState extends State<AddProductPage> {
   String description = '';
   int stock = 0;
   String? selectedCategory;
-  File? _image;
+  File? _image; // Đây là ảnh được chọn từ thư viện
   bool _isPickingImage =
       false; // Trạng thái để kiểm tra xem việc chọn ảnh đã bắt đầu chưa
 
@@ -131,16 +131,24 @@ class _AddProductPageState extends State<AddProductPage> {
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
+
+                    // Đảm bảo đường dẫn ảnh là tệp hợp lệ
+                    final imageUrl =
+                        _image != null ? _image!.path : ""; // Lưu đường dẫn ảnh
+
+                    // Thêm sản phẩm vào provider
                     productProvider.addProduct(
                       Product(
                         name: name,
                         category: selectedCategory ?? "Không có danh mục",
                         price: price,
                         stock: stock,
-                        imageUrl: _image != null ? _image!.path : "",
+                        imageUrl: imageUrl, // Lưu đường dẫn ảnh vào Product
                         description: description,
                       ),
                     );
+
+                    // Quay lại trang trước
                     Navigator.pop(context);
                   }
                 },
@@ -169,7 +177,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
       if (pickedFile != null) {
         setState(() {
-          _image = File(pickedFile.path);
+          _image = File(pickedFile.path); // Lưu đường dẫn ảnh được chọn
         });
       }
     } catch (e) {

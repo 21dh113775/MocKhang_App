@@ -10,15 +10,63 @@ class ProductProvider extends ChangeNotifier {
   List<Product> _products = [];
   List<Product> get products => _products;
 
+  // Danh sách sản phẩm được lọc qua tìm kiếm
+  List<Product> _filteredProducts = [];
+  List<Product> get filteredProducts => _filteredProducts;
+
+  // Từ khóa tìm kiếm hiện tại
+  String _searchQuery = '';
+  String get searchQuery => _searchQuery;
+
   Future<void> fetchProducts() async {
     _products = await productRepository.getProducts();
+    // Mặc định, danh sách lọc ban đầu là toàn bộ sản phẩm
+    _filteredProducts = List.from(_products);
     notifyListeners();
   }
 
+  // Phương thức tìm kiếm sản phẩm
+  void searchProducts(String query) {
+    _searchQuery = query.toLowerCase();
+
+    if (_searchQuery.isEmpty) {
+      // Nếu không có từ khóa, hiển thị tất cả sản phẩm
+      _filteredProducts = List.from(_products);
+    } else {
+      // Nếu có từ khóa, lọc sản phẩm theo tên và mô tả
+      _filteredProducts =
+          _products.where((product) {
+            return product.name.toLowerCase().contains(_searchQuery) ||
+                (product.description != null &&
+                    product.description!.toLowerCase().contains(
+                      _searchQuery,
+                    )) ||
+                product.category.toLowerCase().contains(_searchQuery);
+          }).toList();
+    }
+    notifyListeners();
+  }
+
+  // Reset tìm kiếm
+  void resetSearch() {
+    _searchQuery = '';
+    _filteredProducts = List.from(_products);
+    notifyListeners();
+  }
+
+  // Giữ nguyên các phương thức khác
   Future<void> addProduct(Product product) async {
     bool success = await productRepository.addProduct(product);
     if (success) {
       _products.add(product);
+      // Cập nhật danh sách lọc nếu cần thiết
+      if (_searchQuery.isEmpty ||
+          product.name.toLowerCase().contains(_searchQuery) ||
+          (product.description != null &&
+              product.description!.toLowerCase().contains(_searchQuery)) ||
+          product.category.toLowerCase().contains(_searchQuery)) {
+        _filteredProducts.add(product);
+      }
       notifyListeners();
     }
   }
@@ -29,7 +77,8 @@ class ProductProvider extends ChangeNotifier {
       int index = _products.indexWhere((p) => p.id == product.id);
       if (index != -1) {
         _products[index] = product;
-        notifyListeners();
+        // Cập nhật lại kết quả tìm kiếm
+        searchProducts(_searchQuery);
       }
     }
   }
@@ -38,11 +87,11 @@ class ProductProvider extends ChangeNotifier {
     bool success = await productRepository.deleteProduct(id);
     if (success) {
       _products.removeWhere((product) => product.id == id);
+      _filteredProducts.removeWhere((product) => product.id == id);
       notifyListeners();
     }
   }
 
-  /// **Hàm nhập hàng**
   Future<void> importStock(int productId, int quantityToAdd) async {
     int index = _products.indexWhere((p) => p.id == productId);
     if (index != -1) {
@@ -67,7 +116,8 @@ class ProductProvider extends ChangeNotifier {
           imageUrl: _products[index].imageUrl,
           description: _products[index].description,
         );
-        notifyListeners();
+        // Cập nhật lại kết quả tìm kiếm
+        searchProducts(_searchQuery);
       }
     }
   }

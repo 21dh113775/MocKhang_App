@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
-import 'package:mockhang_app/user/widgets/product_item_card.dart';
+import 'package:mockhang_app/user/pages/product_item_card.dart';
 import 'package:provider/provider.dart';
 
 class ProductPageUser extends StatefulWidget {

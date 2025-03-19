@@ -33,10 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _initializeDatabase() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = 'Đang khởi tạo dữ liệu...';
-    });
+    if (mounted) {
+      // Thêm kiểm tra mounted ở đây
+      setState(() {
+        _isLoading = true;
+        _errorMessage = 'Đang khởi tạo dữ liệu...';
+      });
+    }
 
     try {
       // Khởi tạo DB và đảm bảo có tài khoản admin
@@ -47,19 +50,28 @@ class _LoginScreenState extends State<LoginScreen> {
           await _authService.dbHelper.getAllAdmins();
       debugPrint('Admin accounts available: $admins');
 
-      setState(() {
-        _databaseInitialized = true;
-        _errorMessage = '';
-      });
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        setState(() {
+          _databaseInitialized = true;
+          _errorMessage = '';
+        });
+      }
     } catch (e) {
       debugPrint('Error initializing database: $e');
-      setState(() {
-        _errorMessage = 'Lỗi khởi tạo: $e';
-      });
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        setState(() {
+          _errorMessage = 'Lỗi khởi tạo: $e';
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -67,6 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    // Hủy bỏ các Future đang chạy nếu có
     super.dispose();
   }
 
@@ -74,33 +87,45 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       if (_authService.isLocalAdminLoggedIn) {
         debugPrint('Đăng nhập thành công với vai trò admin (local)');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => AdminHomeScreen()),
-          (route) => false,
-        );
+        if (mounted) {
+          // Thêm kiểm tra mounted ở đây
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => AdminHomeScreen()),
+            (route) => false,
+          );
+        }
         return;
       }
 
       bool isAdmin = await _authService.isCurrentUserAdmin();
       if (isAdmin) {
         debugPrint('Đăng nhập thành công với vai trò admin');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => AdminHomeScreen()),
-          (route) => false,
-        );
+        if (mounted) {
+          // Thêm kiểm tra mounted ở đây
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => AdminHomeScreen()),
+            (route) => false,
+          );
+        }
       } else {
         debugPrint('Đăng nhập thành công với vai trò người dùng');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
+        if (mounted) {
+          // Thêm kiểm tra mounted ở đây
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       debugPrint('Lỗi khi chuyển hướng: $e');
-      _showErrorSnackBar('Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.');
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        _showErrorSnackBar('Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.');
+      }
     }
   }
 
@@ -126,11 +151,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showErrorSnackBar(String message) {
-    AnimatedSnackBar.material(
-      message,
-      type: AnimatedSnackBarType.error,
-      duration: const Duration(seconds: 3),
-    ).show(context);
+    if (mounted) {
+      // Thêm kiểm tra mounted ở đây
+      AnimatedSnackBar.material(
+        message,
+        type: AnimatedSnackBarType.error,
+        duration: const Duration(seconds: 3),
+      ).show(context);
+    }
   }
 
   Future<void> _login() async {
@@ -145,10 +173,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     FocusScope.of(context).unfocus();
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      // Thêm kiểm tra mounted ở đây
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       final email = _emailController.text.trim();
@@ -180,16 +211,22 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Lỗi FirebaseAuth: ${e.code}');
-      setState(() {
-        _errorMessage = _getMessageFromErrorCode(e.code);
-      });
-      _showErrorSnackBar(_errorMessage);
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        setState(() {
+          _errorMessage = _getMessageFromErrorCode(e.code);
+        });
+        _showErrorSnackBar(_errorMessage);
+      }
     } catch (e) {
       debugPrint('Lỗi không xác định: $e');
-      setState(() {
-        _errorMessage = 'Đăng nhập thất bại: ${e.toString()}';
-      });
-      _showErrorSnackBar(_errorMessage);
+      if (mounted) {
+        // Thêm kiểm tra mounted ở đây
+        setState(() {
+          _errorMessage = 'Đăng nhập thất bại: ${e.toString()}';
+        });
+        _showErrorSnackBar(_errorMessage);
+      }
     } finally {
       if (mounted) {
         setState(() {

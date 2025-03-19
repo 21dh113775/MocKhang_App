@@ -5,23 +5,24 @@ import 'package:mockhang_app/admin/data/models/product_model.dart';
 // Thêm import cho các thành phần cần thiết
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:mockhang_app/admin/providers/cart_provider.dart';
+import 'package:mockhang_app/admin/providers/favorite_provider.dart';
 import 'package:provider/provider.dart';
 
-class ProductDetailPageUser extends StatefulWidget {
+class ProductDetailPage extends StatefulWidget {
   final Product product;
   final List<Product> relatedProducts; // Danh sách sản phẩm liên quan
 
-  const ProductDetailPageUser({
+  const ProductDetailPage({
     Key? key,
     required this.product,
     this.relatedProducts = const [], // Mặc định là danh sách rỗng
   }) : super(key: key);
 
   @override
-  State<ProductDetailPageUser> createState() => _ProductDetailPageState();
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
 }
 
-class _ProductDetailPageState extends State<ProductDetailPageUser> {
+class _ProductDetailPageState extends State<ProductDetailPage> {
   int quantity = 1;
 
   // Màu chủ đạo
@@ -48,9 +49,6 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
   void _addToCart() {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
-    // Thêm sản phẩm vào giỏ hàng
-    cartProvider.addItem(widget.product, quantity);
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -75,6 +73,46 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
         content: Text(
           'Đang xử lý đơn hàng cho ${quantity} ${widget.product.name}',
         ),
+        backgroundColor: primaryColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _toggleFavorite() {
+    final favoriteProvider = Provider.of<FavoriteProvider>(
+      context,
+      listen: false,
+    );
+    favoriteProvider.toggleFavorite(widget.product);
+
+    final isFavorite = favoriteProvider.isFavorite(widget.product);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFavorite
+              ? 'Đã thêm ${widget.product.name} vào danh sách yêu thích'
+              : 'Đã xóa ${widget.product.name} khỏi danh sách yêu thích',
+        ),
+        backgroundColor: primaryColor,
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'XEM',
+          textColor: Colors.white,
+          onPressed: () {
+            Navigator.pushNamed(context, '/favorite');
+          },
+        ),
+      ),
+    );
+  }
+
+  void _shareProduct() {
+    // TODO: Thêm logic chia sẻ sản phẩm
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đang chia sẻ sản phẩm ${widget.product.name}'),
         backgroundColor: primaryColor,
         duration: const Duration(seconds: 2),
       ),
@@ -240,6 +278,12 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
     return GestureDetector(
       onTap: () {
         // TODO: Điều hướng tới trang chi tiết của sản phẩm liên quan
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailPage(product: product),
+          ),
+        );
       },
       child: Container(
         width: 160,
@@ -298,6 +342,9 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteProvider = Provider.of<FavoriteProvider>(context);
+    final isFavorite = favoriteProvider.isFavorite(widget.product);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -311,16 +358,17 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () {
-              // TODO: Thêm logic yêu thích sản phẩm
-            },
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.red : Colors.white,
+            ),
+            onPressed: _toggleFavorite,
+            tooltip: isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích',
           ),
           IconButton(
             icon: const Icon(Icons.share),
-            onPressed: () {
-              // TODO: Thêm logic chia sẻ sản phẩm
-            },
+            onPressed: _shareProduct,
+            tooltip: 'Chia sẻ sản phẩm',
           ),
         ],
       ),
@@ -353,14 +401,36 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Tên sản phẩm
-                  Text(
-                    widget.product.name,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
+                  // Tên sản phẩm và nút yêu thích
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.product.name,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _toggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.3),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : textColor,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
 
@@ -547,6 +617,15 @@ class _ProductDetailPageState extends State<ProductDetailPageUser> {
         child: SafeArea(
           child: Row(
             children: [
+              IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : textColor,
+                ),
+                onPressed: _toggleFavorite,
+                tooltip:
+                    isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích',
+              ),
               IconButton(
                 icon: Icon(Icons.chat, color: textColor),
                 onPressed: () {

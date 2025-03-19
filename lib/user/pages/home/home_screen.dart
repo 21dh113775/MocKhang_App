@@ -1,14 +1,15 @@
 // home_screen.dart
 import 'package:flutter/material.dart';
-import 'package:mockhang_app/admin/pages/account_page.dart';
+
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
+import 'package:mockhang_app/user/pages/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
-import 'package:mockhang_app/user/pages/discount_page_user.dart';
+import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
 import 'package:mockhang_app/user/pages/home/banner_section.dart';
 import 'package:mockhang_app/user/pages/home/category_section.dart';
-import 'package:mockhang_app/user/pages/home/product_section.dart';
+import 'package:mockhang_app/user/pages/home/productsection/product_section.dart';
 import 'package:mockhang_app/user/pages/home/search_bar.dart';
 import 'package:mockhang_app/user/widgets/bottom_nav_bar_widget.dart';
 import 'package:mockhang_app/user/widgets/drawer_widget.dart';
@@ -33,10 +34,10 @@ class _HomePageState extends State<HomeScreen> {
   // Danh sách các trang nội dung
   final List<Widget> _pages = [
     Container(), // Placeholder cho trang chủ
-    const DiscountPageUser(), // Trang Khuyến Mãi
+    DiscountPageUser(), // Trang Khuyến Mãi
     ConsultationPage(), // Trang Liên Hệ
-    const CartPage(), // Trang Giỏ Hàng
-    AccountPage(), // Trang Tài Khoản
+    CartPage(), // Trang Giỏ Hàng
+    AccountPageUser(), // Trang Tài Khoản
   ];
 
   @override
@@ -92,7 +93,19 @@ class _HomePageState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const HomeSearchBar(onSubmitted: null),
+            Consumer<ProductProvider>(
+              builder: (context, productProvider, _) {
+                return HomeSearchBar(
+                  initialValue: productProvider.searchQuery,
+                  onSearch: (query) {
+                    productProvider.searchProducts(query);
+                  },
+                  onReset: () {
+                    productProvider.resetSearch();
+                  },
+                );
+              },
+            ),
             const BannerSection(),
             const SizedBox(height: 16),
             CategorySection(
@@ -102,11 +115,16 @@ class _HomePageState extends State<HomeScreen> {
               onRefresh: _loadData,
             ),
             const SizedBox(height: 16),
-            ProductSection(
-              isLoading: _isProductLoading,
-              error: _productError,
-              products: Provider.of<ProductProvider>(context).products,
-              onRefresh: _loadData,
+            Consumer<ProductProvider>(
+              builder: (context, productProvider, _) {
+                return ProductSection(
+                  isLoading: _isProductLoading,
+                  error: _productError,
+                  // Sử dụng danh sách lọc thay vì toàn bộ sản phẩm
+                  products: productProvider.filteredProducts,
+                  onRefresh: _loadData,
+                );
+              },
             ),
             const SizedBox(height: 30),
           ],
@@ -161,7 +179,7 @@ class _HomePageState extends State<HomeScreen> {
             _currentIndex = index;
           });
         },
-        showLabels: false, // Không hiển thị nhãn dưới NavBar
+        showLabels: false, // Không hiển thị nhãn dưới NavBarj
       ),
     );
   }
