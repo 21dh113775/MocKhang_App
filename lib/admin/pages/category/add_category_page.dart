@@ -18,10 +18,14 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
   Widget build(BuildContext context) {
     final categoryProvider = Provider.of<CategoryProvider>(
       context,
-      listen: false,
+      listen:
+          true, // Thay đổi từ false để lắng nghe thay đổi trạng thái isLoading và error
     );
 
     final theme = Theme.of(context);
+
+    // Sử dụng trạng thái isLoading từ provider thay vì quản lý trạng thái riêng
+    bool isSubmitting = _isSubmitting || categoryProvider.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -89,6 +93,30 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                     ),
                     SizedBox(height: 24),
 
+                    // Hiển thị lỗi từ provider nếu có
+                    if (categoryProvider.error != null)
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        margin: EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                categoryProvider.error!,
+                                style: TextStyle(color: Colors.red[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Input field
                     TextFormField(
                       decoration: InputDecoration(
@@ -130,7 +158,8 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                         }
                         return null;
                       },
-                      onSaved: (value) => categoryName = value!,
+                      onSaved: (value) => categoryName = value!.trim(),
+                      enabled: !isSubmitting,
                     ),
                     SizedBox(height: 36),
 
@@ -140,7 +169,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed:
-                            _isSubmitting
+                            isSubmitting
                                 ? null
                                 : () async {
                                   if (_formKey.currentState!.validate()) {
@@ -152,24 +181,29 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                                         Category(name: categoryName),
                                       );
 
-                                      Navigator.pop(context);
+                                      // Chỉ điều hướng trở lại nếu không có lỗi
+                                      if (categoryProvider.error == null) {
+                                        Navigator.pop(context);
 
-                                      // Sử dụng animated_snack_bar thay vì SnackBar thông thường
-                                      AnimatedSnackBar.material(
-                                        'Đã thêm danh mục thành công!',
-                                        type: AnimatedSnackBarType.success,
-                                        mobileSnackBarPosition:
-                                            MobileSnackBarPosition.bottom,
-                                        desktopSnackBarPosition:
-                                            DesktopSnackBarPosition.topRight,
-                                        duration: Duration(seconds: 3),
-                                      ).show(context);
+                                        // Sử dụng animated_snack_bar thay vì SnackBar thông thường
+                                        AnimatedSnackBar.material(
+                                          'Đã thêm danh mục thành công!',
+                                          type: AnimatedSnackBarType.success,
+                                          mobileSnackBarPosition:
+                                              MobileSnackBarPosition.bottom,
+                                          desktopSnackBarPosition:
+                                              DesktopSnackBarPosition.topRight,
+                                          duration: Duration(seconds: 3),
+                                        ).show(context);
+                                      } else {
+                                        setState(() => _isSubmitting = false);
+                                      }
                                     } catch (e) {
                                       setState(() => _isSubmitting = false);
 
                                       // Sử dụng animated_snack_bar cho thông báo lỗi
                                       AnimatedSnackBar.material(
-                                        'Lỗi: Không thể thêm danh mục',
+                                        'Lỗi: ${e.toString()}',
                                         type: AnimatedSnackBarType.error,
                                         mobileSnackBarPosition:
                                             MobileSnackBarPosition.bottom,
@@ -189,7 +223,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                           elevation: 2,
                         ),
                         child:
-                            _isSubmitting
+                            isSubmitting
                                 ? CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     Colors.white,
@@ -220,7 +254,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                       height: 56,
                       child: TextButton(
                         onPressed:
-                            _isSubmitting ? null : () => Navigator.pop(context),
+                            isSubmitting ? null : () => Navigator.pop(context),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey[700],
                           shape: RoundedRectangleBorder(

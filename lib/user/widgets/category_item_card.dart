@@ -32,9 +32,15 @@ class CategoryItemCard extends StatelessWidget {
 
   // Hàm lấy màu gradient dựa trên category
   List<Color> getCategoryGradient(Category category) {
-    // Tạo màu gradient ngẫu nhiên nhưng ổn định dựa trên id
-    final categoryId = category.id ?? 0;
-    final colorSeed = categoryId % 5;
+    // Tạo màu gradient ổn định dựa trên id
+    // Xử lý id có thể là String hoặc null
+    final String idString = category.id ?? '';
+    int colorSeed = 0;
+
+    // Tạo một số nguyên từ chuỗi id
+    if (idString.isNotEmpty) {
+      colorSeed = idString.codeUnits.reduce((a, b) => a + b) % 5;
+    }
 
     switch (colorSeed) {
       case 0:

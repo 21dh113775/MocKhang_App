@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mockhang_app/admin/data/models/category_model.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:provider/provider.dart';
 import 'add_category_page.dart';
@@ -50,7 +51,11 @@ class _CategoryPageState extends State<CategoryPage> {
               ),
             ),
             child:
-                categoryProvider.categories.isEmpty
+                categoryProvider.isLoading
+                    ? Center(
+                      child: CircularProgressIndicator(color: primaryBrown),
+                    )
+                    : categoryProvider.categories.isEmpty
                     ? Center(
                       child: Text(
                         "Không có danh mục nào.",
@@ -124,16 +129,15 @@ class _CategoryPageState extends State<CategoryPage> {
                                   ),
                                   onPressed: () {
                                     // Kiểm tra xem id có tồn tại không trước khi xử lý
-                                    if (category.id != null) {
-                                      // Sử dụng toán tử ! vì đã kiểm tra null
+                                    if (category.id != null &&
+                                        category.id!.isNotEmpty) {
                                       _confirmDelete(
                                         context,
                                         categoryProvider,
-                                        category
-                                            .id!, // Thêm ! để chuyển từ int? sang int
+                                        category.id!,
                                       );
                                     } else {
-                                      // Hiển thị thông báo lỗi nếu id là null
+                                      // Hiển thị thông báo lỗi nếu id là null hoặc rỗng
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
@@ -174,7 +178,8 @@ class _CategoryPageState extends State<CategoryPage> {
   Future<void> _confirmDelete(
     BuildContext context,
     CategoryProvider provider,
-    int categoryId, // Giữ là int không nullable
+    String
+    categoryId, // Đã thay đổi từ int sang String để phù hợp với CategoryProvider
   ) async {
     await showDialog(
       context: context,
@@ -201,18 +206,31 @@ class _CategoryPageState extends State<CategoryPage> {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {
-                  provider.deleteCategory(categoryId);
-                  Navigator.pop(context, true);
+                onPressed: () async {
+                  try {
+                    await provider.deleteCategory(categoryId);
+                    Navigator.pop(context, true);
 
-                  // Hiển thị thông báo xóa thành công
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Đã xóa danh mục thành công'),
-                      backgroundColor: primaryBrown,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                    // Hiển thị thông báo xóa thành công
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã xóa danh mục thành công'),
+                        backgroundColor: primaryBrown,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  } catch (e) {
+                    Navigator.pop(context, false);
+
+                    // Hiển thị thông báo lỗi
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi khi xóa danh mục: ${e.toString()}'),
+                        backgroundColor: Colors.red[700],
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 },
                 child: Text("Xóa"),
                 style: ElevatedButton.styleFrom(

@@ -36,8 +36,14 @@ Future<void> initializeProviders() async {
   // Initialize database instances first
   final productDatabase = ProductDatabase.instance;
   final categoryDatabase = CategoryDatabase.instance;
+
+  // For ProductDatabase, access the database property
   await productDatabase.database;
-  await categoryDatabase.database;
+
+  // For CategoryDatabase, there's no need to initialize anything explicitly
+  // since it already initializes Firestore in its constructor
+  // You could call a lightweight method to ensure it's ready
+  await categoryDatabase.fetchCategories();
 
   // Pre-initialize UserProvider to avoid build-phase issues
   final userProvider = UserProvider();

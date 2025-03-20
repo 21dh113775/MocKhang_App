@@ -39,9 +39,7 @@ class FavoriteProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final favoritesData =
           _favoriteItems.map((product) {
-            return jsonEncode(
-              product.toMap(),
-            ); // Sử dụng toMap() thay vì toJson()
+            return jsonEncode(product.toMap());
           }).toList();
 
       await prefs.setStringList('favorites', favoritesData);
