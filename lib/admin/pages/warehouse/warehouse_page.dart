@@ -39,7 +39,6 @@ class _WarehousePageState extends State<WarehousePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Kho hàng"),
-        // Loại bỏ automaticallyImplyLeading để không hiển thị nút quay lại
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -134,7 +133,7 @@ class _WarehousePageState extends State<WarehousePage> {
                 ],
               ),
             ),
-            _buildImportButton(context, product.id!),
+            _buildImportButton(context, product.id),
           ],
         ),
       ),
@@ -162,18 +161,37 @@ class _WarehousePageState extends State<WarehousePage> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(7),
-        child:
-            imageUrl.isNotEmpty && File(imageUrl).existsSync()
-                ? Image.file(File(imageUrl), fit: BoxFit.cover)
-                : Container(
-                  color: Colors.grey[200],
-                  child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                ),
+        child: _buildImageFromSource(imageUrl),
       ),
     );
   }
 
-  Widget _buildImportButton(BuildContext context, int productId) {
+  Widget _buildImageFromSource(String imageUrl) {
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholderImage(),
+      );
+    } else if (File(imageUrl).existsSync()) {
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholderImage(),
+      );
+    } else {
+      return _placeholderImage();
+    }
+  }
+
+  Widget _placeholderImage() {
+    return Container(
+      color: Colors.grey[200],
+      child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
+    );
+  }
+
+  Widget _buildImportButton(BuildContext context, String productId) {
     return ElevatedButton.icon(
       icon: Icon(Icons.add, size: 16),
       label: Text("Nhập kho"),
@@ -186,7 +204,7 @@ class _WarehousePageState extends State<WarehousePage> {
     );
   }
 
-  void _showImportDialog(BuildContext context, int productId) {
+  void _showImportDialog(BuildContext context, String productId) {
     _quantityController.clear();
 
     showDialog(
@@ -240,6 +258,7 @@ class _WarehousePageState extends State<WarehousePage> {
                     context,
                     listen: false,
                   ).importStock(productId, quantity);
+
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

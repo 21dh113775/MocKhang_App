@@ -73,11 +73,18 @@ class DiscountModel {
     );
   }
 
-  // Phương thức kiểm tra tính hợp lệ của mã giảm giá
+  // Kiểm tra tính hợp lệ của discount (bao gồm thời gian và các điều kiện khác)
   bool isValid() {
     final currentDate = DateTime.now().millisecondsSinceEpoch;
+    if (currentDate < startDate || currentDate > endDate) {
+      return false; // Discount không hợp lệ vì thời gian không hợp lệ
+    }
 
-    // Kiểm tra xem mã giảm giá có trong thời gian hợp lệ không
-    return currentDate >= startDate && currentDate <= endDate;
+    // Kiểm tra các điều kiện khác nếu cần, ví dụ: giá trị discount phải lớn hơn 0
+    if (value <= 0) {
+      return false; // Discount không hợp lệ vì giá trị không hợp lệ
+    }
+
+    return true;
   }
 }

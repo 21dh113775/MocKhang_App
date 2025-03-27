@@ -11,8 +11,13 @@ class CategoryRepository {
     String docId = await categoryDB.insertCategory(category);
 
     if (docId.isNotEmpty) {
-      // Tạo bản sao của category với ID được gán từ Firestore
-      return Category(id: docId, name: category.name, icon: category.icon);
+      return Category(
+        id: docId,
+        name: category.name,
+        icon: category.icon,
+        imageUrl:
+            category.imageUrl, // Return imageUrl as part of the category object
+      );
     }
 
     throw Exception('Không thể thêm danh mục');

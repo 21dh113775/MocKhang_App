@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mockhang_app/admin/data/models/category_model.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
+
 import 'add_category_page.dart';
 import 'edit_category_page.dart';
 
@@ -11,15 +14,20 @@ class CategoryPage extends StatefulWidget {
 }
 
 class _CategoryPageState extends State<CategoryPage> {
-  // Định nghĩa các màu nâu để sử dụng trong ứng dụng
-  final Color primaryBrown = Color(0xFF8D6E63); // Màu nâu chính
-  final Color darkBrown = Color(0xFF5D4037); // Màu nâu đậm
-  final Color lightBrown = Color(0xFFD7CCC8); // Màu nâu nhạt
-  final Color accentBrown = Color(0xFFA1887F); // Màu nâu nhấn
+  // Định nghĩa bảng màu sắc chủ đạo
+  final Color primaryColor = Color.fromARGB(255, 103, 66, 6); // Màu tím chính
+  final Color secondaryColor = Color.fromARGB(190, 139, 81, 5); // Màu xanh mint
+  final Color backgroundColor = Color(0xFFF5F5F5); // Màu nền nhạt
+  final Color textColor = Color.fromARGB(255, 0, 0, 0); // Màu văn bản chính
+
+  // Trạng thái tìm kiếm và lọc
+  TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    // Tải danh mục ngay khi trang được khởi tạo
     Future.microtask(() {
       Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
     });
@@ -27,219 +35,302 @@ class _CategoryPageState extends State<CategoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CategoryProvider>(
-      builder: (context, categoryProvider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              "Quản lý Danh mục",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+    return Scaffold(
+      // Thanh ứng dụng với thiết kế hiện đại
+      appBar: AppBar(
+        title: Text(
+          'Quản Lý Danh Mục',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 1.2,
+          ),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.filter_list_rounded),
+            onPressed: _showFilterOptions,
+          ),
+        ],
+      ),
+
+      // Nền gradient mềm mại
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [primaryColor.withOpacity(0.1), backgroundColor],
+          ),
+        ),
+        child: Column(
+          children: [
+            // Thanh tìm kiếm với hiệu ứng
+            _buildSearchBar(),
+
+            // Danh sách danh mục
+            Expanded(
+              child: Consumer<CategoryProvider>(
+                builder: (context, categoryProvider, child) {
+                  // Xử lý trạng thái tải và hiển thị
+                  if (categoryProvider.isLoading) {
+                    return _buildLoadingIndicator();
+                  }
+
+                  // Lọc danh mục theo từ khóa tìm kiếm
+                  final filteredCategories =
+                      categoryProvider.categories
+                          .where(
+                            (category) => category.name.toLowerCase().contains(
+                              _searchQuery.toLowerCase(),
+                            ),
+                          )
+                          .toList();
+
+                  // Hiển thị danh sách rỗng nếu không có kết quả
+                  if (filteredCategories.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  // Danh sách danh mục với hiệu ứng animation
+                  return ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: filteredCategories.length,
+                    itemBuilder: (context, index) {
+                      final category = filteredCategories[index];
+                      return _buildCategoryCard(category, context);
+                    },
+                  );
+                },
               ),
             ),
-            backgroundColor: darkBrown,
-            elevation: 2,
-            iconTheme: IconThemeData(color: Colors.white),
-          ),
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.white, lightBrown.withOpacity(0.3)],
-              ),
-            ),
-            child:
-                categoryProvider.isLoading
-                    ? Center(
-                      child: CircularProgressIndicator(color: primaryBrown),
-                    )
-                    : categoryProvider.categories.isEmpty
-                    ? Center(
-                      child: Text(
-                        "Không có danh mục nào.",
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: darkBrown,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    )
-                    : ListView.builder(
-                      padding: EdgeInsets.all(12),
-                      itemCount: categoryProvider.categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categoryProvider.categories[index];
-                        return Card(
-                          margin: EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 8,
-                          ),
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: accentBrown, width: 1),
-                          ),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            title: Text(
-                              category.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: darkBrown,
-                                fontSize: 16,
-                              ),
-                            ),
-                            leading: CircleAvatar(
-                              backgroundColor: primaryBrown,
-                              child: Text(
-                                category.name.isNotEmpty
-                                    ? category.name
-                                        .substring(0, 1)
-                                        .toUpperCase()
-                                    : "?",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.edit, color: primaryBrown),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) => EditCategoryPage(
-                                              category: category,
-                                            ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete,
-                                    color: Colors.red[700],
-                                  ),
-                                  onPressed: () {
-                                    // Kiểm tra xem id có tồn tại không trước khi xử lý
-                                    if (category.id != null &&
-                                        category.id!.isNotEmpty) {
-                                      _confirmDelete(
-                                        context,
-                                        categoryProvider,
-                                        category.id!,
-                                      );
-                                    } else {
-                                      // Hiển thị thông báo lỗi nếu id là null hoặc rỗng
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Không thể xóa: ID danh mục không hợp lệ',
-                                          ),
-                                          backgroundColor: Colors.red[700],
-                                        ),
-                                      );
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AddCategoryPage()),
-              );
-            },
-            child: Icon(Icons.add, color: Colors.white),
-            backgroundColor: primaryBrown,
-            tooltip: "Thêm danh mục",
-            elevation: 4,
-          ),
-        );
-      },
+          ],
+        ),
+      ),
+
+      // Nút thêm danh mục nổi bật
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _navigateToAddCategory(context),
+        icon: Icon(Icons.add_circle_outline, color: Colors.white),
+        label: Text('Thêm Danh Mục', style: TextStyle(color: Colors.white)),
+        backgroundColor: primaryColor,
+        elevation: 10,
+      ),
     );
   }
 
-  Future<void> _confirmDelete(
-    BuildContext context,
-    CategoryProvider provider,
-    String
-    categoryId, // Đã thay đổi từ int sang String để phù hợp với CategoryProvider
-  ) async {
-    await showDialog(
+  // Thanh tìm kiếm với hiệu ứng
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Tìm kiếm danh mục...',
+          prefixIcon: Icon(Icons.search, color: primaryColor),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon:
+              _searchController.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(Icons.clear, color: primaryColor),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                  : null,
+        ),
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+          });
+        },
+      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1),
+    );
+  }
+
+  // Hiệu ứng tải
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+          ),
+          SizedBox(height: 16),
+          Text('Đang tải danh mục...', style: TextStyle(color: textColor)),
+        ],
+      ),
+    );
+  }
+
+  // Trạng thái khi không có danh mục
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.category_outlined,
+            size: 100,
+            color: primaryColor.withOpacity(0.5),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Không có danh mục nào',
+            style: TextStyle(
+              fontSize: 18,
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Hãy thêm danh mục đầu tiên của bạn',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ).animate().fadeIn(duration: 500.ms),
+    );
+  }
+
+  // Card danh mục với thiết kế chi tiết
+  Widget _buildCategoryCard(Category category, BuildContext context) {
+    return Card(
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      margin: EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        contentPadding: EdgeInsets.all(12),
+        leading: _buildCategoryAvatar(category),
+        title: Text(
+          category.name,
+          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+        ),
+        // subtitle: Text(
+        //   'Số lượng sản phẩm: ${category.productCount ?? 0}', // Giả sử có trường này
+        //   style: TextStyle(color: Colors.grey),
+        // ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Nút chỉnh sửa
+            IconButton(
+              icon: Icon(Icons.edit, color: secondaryColor),
+              onPressed: () => _navigateToEditCategory(context, category),
+            ),
+            // Nút xóa
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _confirmDeleteCategory(context, category),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 300.ms).slideX(begin: 0.1);
+  }
+
+  // Avatar danh mục linh hoạt
+  Widget _buildCategoryAvatar(Category category) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: primaryColor.withOpacity(0.3), width: 2),
+        image:
+            category.imageUrl != null
+                ? DecorationImage(
+                  image:
+                      category.imageUrl!.startsWith('http')
+                          ? NetworkImage(category.imageUrl!)
+                          : FileImage(File(category.imageUrl!))
+                              as ImageProvider,
+                  fit: BoxFit.cover,
+                )
+                : null,
+      ),
+      child:
+          category.imageUrl == null
+              ? Icon(Icons.category, color: primaryColor, size: 30)
+              : null,
+    );
+  }
+
+  // Hiển thị dialog xác nhận xóa
+  void _confirmDeleteCategory(BuildContext context, Category category) {
+    showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              "Xóa danh mục",
-              style: TextStyle(color: darkBrown, fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              "Bạn có chắc muốn xóa danh mục này không?",
-              style: TextStyle(color: Colors.black87),
-            ),
-            backgroundColor: Colors.white,
+            title: Text('Xóa Danh Mục'),
+            content: Text('Bạn có chắc muốn xóa danh mục "${category.name}"?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text("Hủy", style: TextStyle(color: accentBrown)),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
+                onPressed: () => Navigator.pop(context),
+                child: Text('Hủy'),
               ),
               ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await provider.deleteCategory(categoryId);
-                    Navigator.pop(context, true);
-
-                    // Hiển thị thông báo xóa thành công
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Đã xóa danh mục thành công'),
-                        backgroundColor: primaryBrown,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  } catch (e) {
-                    Navigator.pop(context, false);
-
-                    // Hiển thị thông báo lỗi
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Lỗi khi xóa danh mục: ${e.toString()}'),
-                        backgroundColor: Colors.red[700],
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  }
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () {
+                  // Xóa danh mục
+                  Provider.of<CategoryProvider>(
+                    context,
+                    listen: false,
+                  ).deleteCategory(category.id!);
+                  Navigator.pop(context);
                 },
-                child: Text("Xóa"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[700],
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
+                child: Text('Xóa'),
               ),
             ],
+          ),
+    );
+  }
+
+  // Các phương thức điều hướng
+  void _navigateToAddCategory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddCategoryPage()),
+    );
+  }
+
+  void _navigateToEditCategory(BuildContext context, Category category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditCategoryPage(category: category),
+      ),
+    );
+  }
+
+  // Hiển thị các tùy chọn lọc
+  void _showFilterOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => Container(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Lọc Danh Mục',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                // Thêm các tùy chọn lọc ở đây
+              ],
+            ),
           ),
     );
   }

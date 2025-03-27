@@ -18,11 +18,29 @@ class CategoryDatabase {
       DocumentReference docRef = await _categoriesCollection.add({
         'name': category.name,
         'icon': category.icon,
+        'imageUrl': category.imageUrl, // Save image URL
         'createdAt': FieldValue.serverTimestamp(),
       });
       return docRef.id;
     } catch (e) {
       throw Exception('Không thể thêm danh mục: $e');
+    }
+  }
+
+  Future<void> updateCategory(Category category) async {
+    try {
+      if (category.id == null || category.id!.isEmpty) {
+        throw Exception('ID danh mục không hợp lệ');
+      }
+
+      await _categoriesCollection.doc(category.id).update({
+        'name': category.name,
+        'icon': category.icon,
+        'imageUrl': category.imageUrl, // Update image URL
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Không thể cập nhật danh mục: $e');
     }
   }
 
@@ -41,23 +59,6 @@ class CategoryDatabase {
       }).toList();
     } catch (e) {
       throw Exception('Không thể lấy danh sách danh mục: $e');
-    }
-  }
-
-  /// **Cập nhật danh mục**
-  Future<void> updateCategory(Category category) async {
-    try {
-      if (category.id == null || category.id!.isEmpty) {
-        throw Exception('ID danh mục không hợp lệ');
-      }
-
-      await _categoriesCollection.doc(category.id).update({
-        'name': category.name,
-        'icon': category.icon,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw Exception('Không thể cập nhật danh mục: $e');
     }
   }
 

@@ -1,102 +1,185 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 
 class ProductDatabase {
   static final ProductDatabase instance = ProductDatabase._init();
-  static Database? _database;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _collectionName = 'products';
 
   ProductDatabase._init();
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
+  // Lấy collection 'products' từ Firestore
+  CollectionReference<Map<String, dynamic>> get _productsCollection =>
+      _firestore.collection(_collectionName);
+
+  /// **Thêm sản phẩm vào Firestore**
+  Future<String> insertProduct(Product product) async {
+    try {
+      // Kiểm tra dữ liệu đầu vào
+      if (product.name.isEmpty ||
+          product.category.isEmpty ||
+          product.price <= 0 ||
+          product.stock < 0) {
+        throw Exception('Dữ liệu không hợp lệ');
+      }
+
+      DocumentReference docRef = await _productsCollection.add({
+        'name': product.name,
+        'category': product.category,
+        'price': product.price,
+        'stock': product.stock,
+        'soldQuantity': product.soldQuantity,
+        'importedQuantity': product.importedQuantity,
+        'imageUrl': product.imageUrl,
+        'description': product.description,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Không thể thêm sản phẩm: $e');
+    }
   }
 
-  Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'products.db');
-    return await openDatabase(
-      path,
-      version: 3,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            category TEXT NOT NULL,
-            price REAL NOT NULL,
-            stock INTEGER NOT NULL,
-            soldQuantity INTEGER DEFAULT 0,
-            importedQuantity INTEGER DEFAULT 0,
-            imageUrl TEXT,
-            description TEXT
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 3) {
-          await db.execute(
-            'ALTER TABLE products ADD COLUMN soldQuantity INTEGER DEFAULT 0',
-          );
-          await db.execute(
-            'ALTER TABLE products ADD COLUMN importedQuantity INTEGER DEFAULT 0',
-          );
-        }
-      },
-    );
-  }
-
-  Future<int> insertProduct(Product product) async {
-    final db = await database;
-    return await db.insert(
-      'products',
-      product.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
+  /// **Lấy tất cả sản phẩm từ Firestore**
   Future<List<Product>> fetchProducts() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('products');
-    return maps.map((map) => Product.fromMap(map)).toList();
+    try {
+      QuerySnapshot querySnapshot =
+          await _productsCollection.orderBy('name').get();
+
+      // Nếu không có sản phẩm trong Firestore, trả về danh sách rỗng
+      if (querySnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      return querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return Product.fromMap(data, doc.id);
+      }).toList();
+    } catch (e) {
+      throw Exception('Không thể lấy danh sách sản phẩm: $e');
+    }
   }
 
-  Future<int> updateProduct(Product product) async {
-    final db = await database;
+  /// **Cập nhật sản phẩm trong Firestore**
+  Future<void> updateProduct(Product product) async {
+    try {
+      // Kiểm tra ID sản phẩm
+      if (product.id == null || product.id!.isEmpty) {
+        throw Exception('ID sản phẩm không hợp lệ');
+      }
 
-    // Debugging print statements to check if data is correct
-    print('Updating product: ${product.toMap()}');
+      // Kiểm tra dữ liệu đầu vào
+      if (product.name.isEmpty ||
+          product.category.isEmpty ||
+          product.price <= 0 ||
+          product.stock < 0) {
+        throw Exception('Dữ liệu không hợp lệ');
+      }
 
-    // Update the product and check if it worked
-    int result = await db.update(
-      'products',
-      product.toMap(),
-      where: 'id = ?',
-      whereArgs: [product.id],
-    );
-
-    print('Update result: $result');
-    return result;
+      await _productsCollection.doc(product.id).update({
+        'name': product.name,
+        'category': product.category,
+        'price': product.price,
+        'stock': product.stock,
+        'soldQuantity': product.soldQuantity,
+        'importedQuantity': product.importedQuantity,
+        'imageUrl': product.imageUrl,
+        'description': product.description,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Không thể cập nhật sản phẩm: $e');
+    }
   }
 
-  Future<int> deleteProduct(int id) async {
-    final db = await database;
-    return await db.delete('products', where: 'id = ?', whereArgs: [id]);
+  /// **Xóa sản phẩm khỏi Firestore**
+  Future<void> deleteProduct(String id) async {
+    try {
+      if (id.isEmpty) {
+        throw Exception('ID sản phẩm không hợp lệ');
+      }
+
+      await _productsCollection.doc(id).delete();
+    } catch (e) {
+      throw Exception('Không thể xóa sản phẩm: $e');
+    }
   }
 
-  Future<int> updateStock(
-    int productId,
-    int stock,
-    int sold,
-    int imported,
-  ) async {
-    final db = await database;
-    return await db.update(
-      'products',
-      {'stock': stock, 'soldQuantity': sold, 'importedQuantity': imported},
-      where: 'id = ?',
-      whereArgs: [productId],
-    );
+  /// **Lắng nghe sự thay đổi của sản phẩm theo thời gian thực**
+  Stream<List<Product>> watchProducts() {
+    return _productsCollection.orderBy('name').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data();
+        return Product.fromMap(data, doc.id);
+      }).toList();
+    });
+  }
+
+  /// **Tìm kiếm sản phẩm theo từ khóa**
+  Future<List<Product>> searchProducts(String keyword) async {
+    try {
+      // Kiểm tra từ khóa tìm kiếm
+      if (keyword.isEmpty) {
+        return []; // Nếu không có từ khóa, trả về danh sách rỗng
+      }
+
+      QuerySnapshot querySnapshot = await _productsCollection.get();
+
+      return querySnapshot.docs
+          .map((doc) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            return Product.fromMap(data, doc.id);
+          })
+          .where(
+            (product) =>
+                product.name.toLowerCase().contains(keyword.toLowerCase()) ||
+                product.category.toLowerCase().contains(keyword.toLowerCase()),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Không thể tìm kiếm sản phẩm: $e');
+    }
+  }
+
+  Future<void> updateStock(String productId, int quantityToAdd) async {
+    try {
+      DocumentSnapshot docSnapshot =
+          await _productsCollection.doc(productId).get();
+
+      if (!docSnapshot.exists) {
+        throw Exception("Sản phẩm không tồn tại");
+      }
+
+      Map<String, dynamic> productData =
+          docSnapshot.data() as Map<String, dynamic>;
+
+      int currentStock = productData['stock'] ?? 0;
+      int currentImportedQuantity = productData['importedQuantity'] ?? 0;
+
+      // Cập nhật số lượng kho và số lượng nhập
+      await _productsCollection.doc(productId).update({
+        'stock': currentStock + quantityToAdd,
+        'importedQuantity': currentImportedQuantity + quantityToAdd,
+      });
+    } catch (e) {
+      throw Exception('Không thể cập nhật kho sản phẩm: $e');
+    }
+  }
+
+  /// Trong ProductDatabase
+  Future<Product?> getProductById(String productId) async {
+    try {
+      DocumentSnapshot doc =
+          await FirebaseFirestore.instance
+              .collection('products')
+              .doc(productId)
+              .get();
+      if (doc.exists) {
+        return Product.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }
+    } catch (e) {
+      print('Error fetching product by id: $e');
+    }
+    return null; // Trả về null nếu không tìm thấy sản phẩm hoặc có lỗi
   }
 }

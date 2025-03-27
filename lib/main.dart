@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,8 @@ import 'package:mockhang_app/admin/data/data_sources/category_db.dart';
 import 'package:mockhang_app/admin/data/data_sources/product_db.dart';
 import 'package:mockhang_app/admin/data/repositories/category_repository.dart';
 import 'package:mockhang_app/admin/data/repositories/product_repository.dart';
+import 'package:mockhang_app/admin/data/repositories/product_repository.dart'
+    as product_repo;
 import 'package:mockhang_app/admin/pages/notifications_page_admin.dart';
 import 'package:mockhang_app/admin/providers/cart_provider.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
@@ -20,6 +23,7 @@ import 'package:mockhang_app/auth/signup_screen.dart';
 import 'package:mockhang_app/user/pages/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
 import 'package:mockhang_app/user/pages/checkout/checkout_page.dart';
+import 'package:mockhang_app/user/pages/checkout/order/order_history_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
 import 'package:mockhang_app/user/pages/home/favorite_page.dart';
 import 'package:mockhang_app/user/pages/home/home_screen.dart';
@@ -31,18 +35,13 @@ import 'package:mockhang_app/user/pages/product_page.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
-// Lazily initialize providers to avoid build-phase issues
 Future<void> initializeProviders() async {
   // Initialize database instances first
-  final productDatabase = ProductDatabase.instance;
+  final productDatabase = product_repo.ProductDatabase.instance;
   final categoryDatabase = CategoryDatabase.instance;
+  // Khởi tạo Firebase Functions
+  FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
 
-  // For ProductDatabase, access the database property
-  await productDatabase.database;
-
-  // For CategoryDatabase, there's no need to initialize anything explicitly
-  // since it already initializes Firestore in its constructor
-  // You could call a lightweight method to ensure it's ready
   await categoryDatabase.fetchCategories();
 
   // Pre-initialize UserProvider to avoid build-phase issues
@@ -69,7 +68,7 @@ void main() async {
         ChangeNotifierProvider(
           create:
               (context) =>
-                  ProductProvider(ProductRepository(ProductDatabase.instance)),
+                  ProductProvider(product_repo.ProductDatabase.instance),
         ),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(
@@ -145,7 +144,7 @@ Map<String, WidgetBuilder> appRoutes = {
   "/register": (context) => SignupScreen(),
   "/admin_home": (context) => AdminHomeScreen(),
   "/user_home": (context) => HomeScreen(),
-  "/products": (context) => ProductPage(),
+  "/products": (context) => ProductPageAdmin(),
   "/categories": (context) => CategoriesPage(),
   "/discount": (context) => DiscountPageUser(),
   "/cart": (context) => CartPage(),
@@ -158,6 +157,7 @@ Map<String, WidgetBuilder> appRoutes = {
   // Thêm route cho các trang Notifications
   "/notifications_admin": (context) => NotificationsPageAdmin(),
   "/notifications": (context) => NotificationsPageUser(),
+  "/order-history": (context) => OrderHistoryPage(),
 };
 
 class AuthWrapper extends StatelessWidget {

@@ -221,20 +221,22 @@ class _CategoryProductsPageState extends State<CategoryProductsPage> {
         Navigator.pop(context);
         setState(() {
           if (title == 'Giá: Thấp đến cao') {
-            _categoryProducts.sort((a, b) => a.price.compareTo(b.price));
+            _categoryProducts.sort(
+              (a, b) => (a.price ?? 0).compareTo(b.price ?? 0),
+            );
           } else if (title == 'Giá: Cao đến thấp') {
-            _categoryProducts.sort((a, b) => b.price.compareTo(a.price));
+            _categoryProducts.sort(
+              (a, b) => (b.price ?? 0).compareTo(a.price ?? 0),
+            );
           } else if (title == 'Mới nhất') {
-            // Giả sử ID lớn hơn là sản phẩm mới hơn
             _categoryProducts.sort((a, b) {
-              // Xử lý null safety cho id
-              final aId = a.id ?? 0;
-              final bId = b.id ?? 0;
+              final aId = int.tryParse(a.id ?? '0') ?? 0;
+              final bId = int.tryParse(b.id ?? '0') ?? 0;
               return bId.compareTo(aId);
             });
           } else if (title == 'Bán chạy nhất') {
             _categoryProducts.sort(
-              (a, b) => b.soldQuantity.compareTo(a.soldQuantity),
+              (a, b) => (b.soldQuantity ?? 0).compareTo(a.soldQuantity ?? 0),
             );
           }
         });

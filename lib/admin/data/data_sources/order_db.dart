@@ -33,6 +33,26 @@ class OrderDB {
     }
   }
 
+  // Xóa đơn hàng
+  Future<void> deleteOrder(String orderId) async {
+    try {
+      await _firestore.collection('orders').doc(orderId).delete();
+    } catch (e) {
+      throw Exception('Lỗi khi xóa đơn hàng: $e');
+    }
+  }
+
+  Future<void> updateOrder(OrderModel updatedOrder) async {
+    try {
+      await _firestore
+          .collection('orders')
+          .doc(updatedOrder.orderId)
+          .update(updatedOrder.toMap());
+    } catch (e) {
+      throw Exception('Lỗi khi cập nhật đơn hàng: $e');
+    }
+  }
+
   // Lấy danh sách tất cả các đơn hàng (admin)
   Future<List<OrderModel>> getAllOrders() async {
     try {

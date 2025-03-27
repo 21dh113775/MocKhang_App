@@ -20,6 +20,16 @@ class CartProvider extends ChangeNotifier {
   String? get shippingMethod => _shippingMethod;
   String? get orderMessage => _orderMessage;
 
+  void _safeNotifyListeners() {
+    if (WidgetsBinding.instance != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
+    } else {
+      Future.microtask(() => notifyListeners());
+    }
+  }
+
   // Cập nhật các phương thức chọn phương thức thanh toán và vận chuyển
   void setPaymentMethod(String method) {
     _paymentMethod = method;
@@ -64,7 +74,7 @@ class CartProvider extends ChangeNotifier {
   }
 
   // Cập nhật số lượng sản phẩm trong giỏ hàng
-  void updateQuantity(int? productId, int quantity) {
+  void updateQuantity(String? productId, int quantity) {
     final index = _items.indexWhere((item) => item.product.id == productId);
     if (index >= 0) {
       _items[index].quantity = quantity;
@@ -73,7 +83,7 @@ class CartProvider extends ChangeNotifier {
   }
 
   // Giảm số lượng sản phẩm
-  void decreaseQuantity(int? productId) {
+  void decreaseQuantity(String? productId) {
     final index = _items.indexWhere((item) => item.product.id == productId);
     if (index >= 0 && _items[index].quantity > 1) {
       _items[index].quantity--;
@@ -82,7 +92,7 @@ class CartProvider extends ChangeNotifier {
   }
 
   // Tăng số lượng sản phẩm
-  void increaseQuantity(int? productId) {
+  void increaseQuantity(String? productId) {
     final index = _items.indexWhere((item) => item.product.id == productId);
     if (index >= 0) {
       _items[index].quantity++;
@@ -91,13 +101,13 @@ class CartProvider extends ChangeNotifier {
   }
 
   // Xóa sản phẩm khỏi giỏ hàng
-  void removeItem(int? productId) {
+  void removeItem(String? productId) {
     _items.removeWhere((item) => item.product.id == productId);
     notifyListeners();
   }
 
   // Cập nhật trạng thái chọn sản phẩm
-  void toggleItemSelection(int? productId) {
+  void toggleItemSelection(String? productId) {
     final index = _items.indexWhere((item) => item.product.id == productId);
     if (index >= 0) {
       _items[index].isSelected = !_items[index].isSelected;

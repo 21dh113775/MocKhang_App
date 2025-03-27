@@ -1,4 +1,3 @@
-// user/pages/home/sections/category_section.dart
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/category_model.dart';
 import 'package:mockhang_app/user/pages/home/section_widgets.dart';

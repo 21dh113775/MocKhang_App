@@ -1,20 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mockhang_app/admin/data/models/discount_model.dart';
 import 'package:mockhang_app/admin/data/repositories/discount_repository.dart';
 
+/// Provider quản lý trạng thái và logic nghiệp vụ cho khuyến mãi
 class DiscountProvider extends ChangeNotifier {
+  // Dependency Injection cho Repository
   final DiscountRepository _repository = DiscountRepository();
 
-  // State management
+  // Quản lý trạng thái dữ liệu
   List<DiscountModel> _discounts = [];
   List<DiscountModel> _activeDiscounts = [];
   DiscountModel? _selectedDiscount;
+
+  // Các cờ trạng thái
   bool _isLoading = false;
-  bool _isProcessing = false; // Trạng thái khi đang xử lý CRUD
+  bool _isProcessing = false; // Trạng thái xử lý CRUD
+
+  // Quản lý thông báo
   String? _error;
   String? _successMessage;
 
-  // Getters
+  // Stream controllers để theo dõi realtime
+  StreamSubscription? _discountsSubscription;
+
+  // Getters để truy cập các trạng thái
   List<DiscountModel> get discounts => _discounts;
   List<DiscountModel> get activeDiscounts => _activeDiscounts;
   DiscountModel? get selectedDiscount => _selectedDiscount;
@@ -23,13 +35,37 @@ class DiscountProvider extends ChangeNotifier {
   String? get error => _error;
   String? get successMessage => _successMessage;
 
-  // Lấy số lượng khuyến mãi
+  // Getter thống kê số lượng
   int get discountCount => _discounts.length;
-
-  // Lấy số lượng khuyến mãi đang hoạt động
   int get activeDiscountCount => _activeDiscounts.length;
 
-  // Helper method để tìm discount trong cache một cách an toàn
+  /// Khởi tạo provider với việc đăng ký theo dõi dữ liệu thời gian thực
+  DiscountProvider() {
+    _listenToDiscountChanges();
+  }
+
+  /// Đăng ký theo dõi thay đổi của khuyến mãi từ Firestore
+  void _listenToDiscountChanges() {
+    _discountsSubscription = FirebaseFirestore.instance
+        .collection('discounts')
+        .snapshots()
+        .listen((snapshot) {
+          // Cập nhật danh sách khuyến mãi khi có thay đổi
+          _discounts =
+              snapshot.docs
+                  .map((doc) => DiscountModel.fromJson(doc.data()))
+                  .toList();
+
+          // Tự động sắp xếp và lọc
+          _discounts.sort((a, b) => b.startDate.compareTo(a.startDate));
+          _activeDiscounts =
+              _discounts.where((discount) => discount.isValid()).toList();
+
+          notifyListeners();
+        });
+  }
+
+  /// Tìm kiếm khuyến mãi trong cache
   DiscountModel? _findDiscountInCache(bool Function(DiscountModel) test) {
     try {
       return _discounts.firstWhere(test);
@@ -38,7 +74,7 @@ class DiscountProvider extends ChangeNotifier {
     }
   }
 
-  // Lấy tất cả khuyến mãi
+  /// Tải lại toàn bộ danh sách khuyến mãi từ Firestore
   Future<void> loadDiscounts() async {
     if (_isLoading) return;
 
@@ -48,96 +84,31 @@ class DiscountProvider extends ChangeNotifier {
 
     try {
       _discounts = await _repository.getAllDiscounts();
-      // Sắp xếp theo thời gian bắt đầu, mới nhất lên đầu
       _discounts.sort((a, b) => b.startDate.compareTo(a.startDate));
       print("Đã tải ${_discounts.length} khuyến mãi");
     } catch (e) {
-      print("Lỗi khi tải khuyến mãi: $e");
       _error = "Không thể tải danh sách khuyến mãi: ${e.toString()}";
+      print("Lỗi khi tải khuyến mãi: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Lấy các khuyến mãi đang hoạt động
-  Future<void> loadActiveDiscounts() async {
-    if (_isLoading) return;
-
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      _activeDiscounts = await _repository.getActiveDiscounts();
-      print("Đã tải ${_activeDiscounts.length} khuyến mãi đang hoạt động");
-    } catch (e) {
-      print("Lỗi khi tải khuyến mãi đang hoạt động: $e");
-      _error = "Không thể tải khuyến mãi đang hoạt động: ${e.toString()}";
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Tìm kiếm khuyến mãi theo từ khóa
+  /// Tìm kiếm khuyến mãi theo từ khóa
   List<DiscountModel> searchDiscounts(String keyword) {
     if (keyword.isEmpty) return _discounts;
 
     keyword = keyword.toLowerCase();
-    return _discounts
-        .where(
-          (discount) =>
-              discount.name.toLowerCase().contains(keyword) ||
-              (discount.description?.toLowerCase().contains(keyword) ??
-                  false) ||
-              (discount.code?.toLowerCase().contains(keyword) ?? false) ||
-              (discount.barcode?.toLowerCase().contains(keyword) ?? false),
-        )
-        .toList();
+    return _discounts.where((discount) {
+      return discount.name.toLowerCase().contains(keyword) ||
+          (discount.description?.toLowerCase().contains(keyword) ?? false) ||
+          (discount.code?.toLowerCase().contains(keyword) ?? false) ||
+          (discount.barcode?.toLowerCase().contains(keyword) ?? false);
+    }).toList();
   }
 
-  // Tìm kiếm khuyến mãi theo mã vạch
-  Future<DiscountModel?> findDiscountByBarcode(String barcode) async {
-    if (_isProcessing) return null;
-
-    _isProcessing = true;
-    notifyListeners();
-
-    try {
-      // Tìm trong cache trước
-      final cachedDiscount = _findDiscountInCache(
-        (discount) => discount.barcode == barcode,
-      );
-
-      if (cachedDiscount != null) {
-        return cachedDiscount;
-      }
-
-      // Tìm trong database
-      final db = await _repository.database;
-      final result = await db.query(
-        'discounts',
-        where: 'barcode = ?',
-        whereArgs: [barcode],
-      );
-
-      if (result.isNotEmpty) {
-        return DiscountModel.fromJson(result.first);
-      }
-
-      return null;
-    } catch (e) {
-      print("Lỗi khi tìm khuyến mãi theo mã vạch: $e");
-      _error = "Không thể tìm khuyến mãi: ${e.toString()}";
-      return null;
-    } finally {
-      _isProcessing = false;
-      notifyListeners();
-    }
-  }
-
-  // Thêm khuyến mãi mới
+  /// Thêm khuyến mãi mới
   Future<DiscountModel?> addDiscount(DiscountModel discount) async {
     if (_isProcessing) return null;
 
@@ -147,22 +118,22 @@ class DiscountProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print("Đang thêm khuyến mãi mới: ${discount.name}");
-      final newDiscount = await _repository.createDiscount(discount);
-      _discounts.add(newDiscount);
+      // Kiểm tra mã vạch hợp lệ trước khi thêm
+      if (discount.barcode != null && !isValidBarcode(discount.barcode!)) {
+        throw ArgumentError('Mã vạch không hợp lệ');
+      }
 
-      // Tự động sắp xếp lại danh sách
-      _discounts.sort((a, b) => b.startDate.compareTo(a.startDate));
+      // Kiểm tra tính hợp lệ của discount trước khi thêm
+      if (discount.name.isEmpty || discount.value <= 0) {
+        throw ArgumentError('Tên khuyến mãi hoặc giá trị không hợp lệ');
+      }
+
+      // Thêm discount vào hệ thống
+      final newDiscount = await _repository.createDiscount(discount);
 
       _successMessage = "Đã thêm khuyến mãi thành công";
-      print("Đã thêm khuyến mãi thành công với ID: ${newDiscount.id}");
-
-      // Cập nhật danh sách khuyến mãi đang hoạt động
-      await loadActiveDiscounts();
-
       return newDiscount;
     } catch (e) {
-      print("Lỗi khi thêm khuyến mãi: $e");
       _error = "Không thể thêm khuyến mãi: ${e.toString()}";
       return null;
     } finally {
@@ -171,7 +142,7 @@ class DiscountProvider extends ChangeNotifier {
     }
   }
 
-  // Cập nhật khuyến mãi
+  /// Cập nhật thông tin khuyến mãi
   Future<bool> updateDiscount(DiscountModel discount) async {
     if (_isProcessing) return false;
 
@@ -181,34 +152,12 @@ class DiscountProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print("Đang cập nhật khuyến mãi: ${discount.id}");
-      final result = await _repository.updateDiscount(discount);
+      // Cập nhật khuyến mãi và thông báo kết quả
+      await _repository.updateDiscount(discount);
 
-      if (result > 0) {
-        // Cập nhật thành công
-        final index = _discounts.indexWhere((d) => d.id == discount.id);
-        if (index != -1) {
-          _discounts[index] = discount;
-
-          // Nếu đang hiển thị chi tiết discount này, cập nhật lại
-          if (_selectedDiscount?.id == discount.id) {
-            _selectedDiscount = discount;
-          }
-
-          _successMessage = "Đã cập nhật khuyến mãi thành công";
-          print("Đã cập nhật khuyến mãi thành công");
-
-          // Cập nhật danh sách khuyến mãi đang hoạt động
-          await loadActiveDiscounts();
-
-          return true;
-        }
-      }
-
-      _error = "Không thể cập nhật khuyến mãi";
-      return false;
+      _successMessage = "Đã cập nhật khuyến mãi thành công";
+      return true;
     } catch (e) {
-      print("Lỗi khi cập nhật khuyến mãi: $e");
       _error = "Không thể cập nhật khuyến mãi: ${e.toString()}";
       return false;
     } finally {
@@ -217,7 +166,7 @@ class DiscountProvider extends ChangeNotifier {
     }
   }
 
-  // Xóa khuyến mãi
+  /// Xóa khuyến mãi theo ID
   Future<bool> deleteDiscount(String id) async {
     if (_isProcessing) return false;
 
@@ -227,31 +176,12 @@ class DiscountProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print("Đang xóa khuyến mãi: $id");
-      final result = await _repository.deleteDiscount(id);
+      // Thực hiện xóa khuyến mãi
+      await _repository.deleteDiscount(id);
 
-      if (result > 0) {
-        // Xóa thành công
-        _discounts.removeWhere((discount) => discount.id == id);
-
-        // Nếu đang hiển thị chi tiết discount này, xóa lựa chọn
-        if (_selectedDiscount?.id == id) {
-          _selectedDiscount = null;
-        }
-
-        _successMessage = "Đã xóa khuyến mãi thành công";
-        print("Đã xóa khuyến mãi thành công");
-
-        // Cập nhật danh sách khuyến mãi đang hoạt động
-        await loadActiveDiscounts();
-
-        return true;
-      }
-
-      _error = "Không thể xóa khuyến mãi";
-      return false;
+      _successMessage = "Đã xóa khuyến mãi thành công";
+      return true;
     } catch (e) {
-      print("Lỗi khi xóa khuyến mãi: $e");
       _error = "Không thể xóa khuyến mãi: ${e.toString()}";
       return false;
     } finally {
@@ -260,167 +190,32 @@ class DiscountProvider extends ChangeNotifier {
     }
   }
 
-  // Lấy thông tin khuyến mãi theo ID
-  Future<DiscountModel?> getDiscount(String id) async {
-    // Tìm trong cache trước
-    final cachedDiscount = _findDiscountInCache(
-      (discount) => discount.id == id,
-    );
-
-    if (cachedDiscount != null) {
-      // Update selection without notifying during build
-      _selectedDiscount = cachedDiscount;
-      notifyListeners();
-      return cachedDiscount;
-    }
-
-    // Nếu không có trong cache, tải từ database
-    if (_isProcessing) return null;
-
-    _isProcessing = true;
-    notifyListeners();
-
-    try {
-      print("Đang tải thông tin khuyến mãi ID: $id");
-      final discount = await _repository.getDiscountById(id);
-
-      if (discount != null) {
-        _selectedDiscount = discount;
-        print("Đã tải thông tin khuyến mãi: ${discount.name}");
-      } else {
-        print("Không tìm thấy khuyến mãi với ID: $id");
-      }
-
-      return discount;
-    } catch (e) {
-      print("Lỗi khi tải thông tin khuyến mãi: $e");
-      _error = "Không thể tải thông tin khuyến mãi: ${e.toString()}";
-      return null;
-    } finally {
-      _isProcessing = false;
-      notifyListeners();
-    }
-  }
-
-  // Tạo mã vạch mới cho khuyến mãi
-  Future<bool> generateNewBarcode(String discountId) async {
-    if (_isProcessing) return false;
-
-    _isProcessing = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      // Tìm khuyến mãi
-      final discount = _findDiscountInCache(
-        (discount) => discount.id == discountId,
-      );
-
-      final discountToUpdate =
-          discount ?? await _repository.getDiscountById(discountId);
-
-      if (discountToUpdate == null) {
-        _error = "Không tìm thấy khuyến mãi";
-        return false;
-      }
-
-      // Tạo mã vạch mới
-      final newBarcode = _repository.generateBarcode(discountId);
-
-      // Cập nhật khuyến mãi với mã vạch mới
-      final updatedDiscount = discountToUpdate.copyWith(barcode: newBarcode);
-      final success = await updateDiscount(updatedDiscount);
-
-      if (success) {
-        _successMessage = "Đã tạo mã vạch mới thành công";
-        return true;
-      } else {
-        _error = "Không thể cập nhật mã vạch";
-        return false;
-      }
-    } catch (e) {
-      print("Lỗi khi tạo mã vạch mới: $e");
-      _error = "Không thể tạo mã vạch mới: ${e.toString()}";
-      return false;
-    } finally {
-      _isProcessing = false;
-      notifyListeners();
-    }
-  }
-
-  // Kiểm tra một mã vạch đã tồn tại hay chưa
-  Future<bool> isBarcodeExists(String barcode) async {
-    try {
-      final discount = await findDiscountByBarcode(barcode);
-      return discount != null;
-    } catch (e) {
-      print("Lỗi khi kiểm tra mã vạch: $e");
-      return false;
-    }
-  }
-
-  // Làm mới dữ liệu sau khi có thay đổi
-  Future<void> refreshData() async {
-    await loadDiscounts();
-    await loadActiveDiscounts();
-  }
-
-  // Xóa lỗi
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  // Xóa thông báo thành công
-  void clearSuccessMessage() {
-    _successMessage = null;
-    notifyListeners();
-  }
-
-  // Tải lại dữ liệu nếu trống - call this from initState or post-frame callback
-  Future<void> ensureDataLoaded() async {
-    if (_discounts.isEmpty && !_isLoading) {
-      await loadDiscounts();
-    }
-
-    if (_activeDiscounts.isEmpty && !_isLoading) {
-      await loadActiveDiscounts();
-    }
-  }
-
-  // Lọc khuyến mãi theo loại - pure function, no state update
+  /// Lọc khuyến mãi theo loại
   List<DiscountModel> filterByType(String type) {
     if (type.isEmpty) return _discounts;
     return _discounts.where((discount) => discount.type == type).toList();
   }
 
-  // Lọc khuyến mãi theo thời gian - pure function, no state update
+  /// Lọc khuyến mãi theo khoảng thời gian
   List<DiscountModel> filterByDateRange(DateTime startDate, DateTime endDate) {
     final startTimestamp = startDate.millisecondsSinceEpoch;
     final endTimestamp = endDate.millisecondsSinceEpoch;
 
-    return _discounts
-        .where(
-          (discount) =>
-              (discount.startDate >= startTimestamp &&
-                  discount.startDate <= endTimestamp) ||
-              (discount.endDate >= startTimestamp &&
-                  discount.endDate <= endTimestamp) ||
-              (discount.startDate <= startTimestamp &&
-                  discount.endDate >= endTimestamp),
-        )
-        .toList();
+    return _discounts.where((discount) {
+      return (discount.startDate >= startTimestamp &&
+              discount.startDate <= endTimestamp) ||
+          (discount.endDate >= startTimestamp &&
+              discount.endDate <= endTimestamp) ||
+          (discount.startDate <= startTimestamp &&
+              discount.endDate >= endTimestamp);
+    }).toList();
   }
 
-  // Kiểm tra xem mã vạch có hợp lệ không (theo định dạng EAN-13)
+  /// Kiểm tra tính hợp lệ của mã vạch
   bool isValidBarcode(String barcode) {
-    // Kiểm tra độ dài và định dạng của mã vạch
     if (barcode.length != 13) return false;
-
-    // Kiểm tra chỉ chứa số
     if (!RegExp(r'^[0-9]+$').hasMatch(barcode)) return false;
 
-    // Kiểm tra mã kiểm tra EAN-13 (check digit)
     int sum = 0;
     for (int i = 0; i < 12; i++) {
       final digit = int.parse(barcode[i]);
@@ -429,5 +224,24 @@ class DiscountProvider extends ChangeNotifier {
 
     final checkDigit = (10 - (sum % 10)) % 10;
     return int.parse(barcode[12]) == checkDigit;
+  }
+
+  /// Tải lại dữ liệu nếu trống - gọi từ initState hoặc post-frame callback
+  Future<void> ensureDataLoaded() async {
+    if (_discounts.isEmpty && !_isLoading) {
+      await loadDiscounts();
+    }
+
+    if (_activeDiscounts.isEmpty && !_isLoading) {
+      _activeDiscounts =
+          _discounts.where((discount) => discount.isValid()).toList();
+    }
+  }
+
+  /// Dọn dẹp tài nguyên khi không sử dụng
+  @override
+  void dispose() {
+    _discountsSubscription?.cancel();
+    super.dispose();
   }
 }

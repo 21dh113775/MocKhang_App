@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -228,26 +229,33 @@ class UserRepository {
     }
   }
 
-  // Xóa tài khoản người dùng (chỉ admin mới thực hiện được)
   Future<bool> deleteUser(String userId) async {
     try {
-      // Kiểm tra người dùng hiện tại
-      final User? currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('Chưa đăng nhập');
+      // Xác nhận kết nối mạng
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .delete()
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException('Hết thời gian xóa tài liệu');
+            },
+          );
+
+      // Xóa ảnh đại diện (nếu có)
+      try {
+        final ref = _storage.ref().child('user_avatars/$userId.jpg');
+        await ref.delete().timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            print('Timeout khi xóa ảnh đại diện');
+            return null;
+          },
+        );
+      } catch (e) {
+        print('Không thể xóa ảnh đại diện: $e');
       }
-
-      // Kiểm tra quyền admin
-      bool isAdmin = await isUserAdmin(currentUser.uid);
-      if (!isAdmin) {
-        throw Exception('Không có quyền admin');
-      }
-
-      // Xóa tài liệu người dùng
-      await _usersCollection.doc(userId).delete();
-
-      // Lưu ý: Việc này chỉ xóa dữ liệu từ Firestore
-      // Để xóa hoàn toàn tài khoản, cần sử dụng Firebase Admin SDK hoặc Functions
 
       return true;
     } catch (e) {

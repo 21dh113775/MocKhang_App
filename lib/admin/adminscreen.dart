@@ -11,8 +11,8 @@ import 'package:mockhang_app/admin/pages/support_page.dart' show SupportPage;
 import 'package:mockhang_app/admin/pages/warehouse/warehouse_page.dart';
 import 'package:mockhang_app/admin/widget/admin_drawer.dart';
 import 'pages/discount/discount_page_admin.dart';
-import 'pages/order_page.dart';
-import 'pages/payments_page.dart' show PaymentsPage;
+import 'pages/order/order_page.dart';
+import 'pages/payments_page.dart' show PaymentsPage, PaymentsPageAdmin;
 import 'pages/reports_page.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -27,14 +27,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     DashboardPage(),
     AccountPageAdmin(),
     CategoryPage(),
-    ProductPage(),
+    ProductPageAdmin(),
     WarehousePage(),
     AdminOrdersPage(),
     SettingsPage(),
     ReportsPage(),
     SupportPage(),
     DiscountPageAdmin(),
-    PaymentsPage(),
+    PaymentsPageAdmin(),
     DeliveryPage(),
     NotificationsPageAdmin(),
     CMSPage(),

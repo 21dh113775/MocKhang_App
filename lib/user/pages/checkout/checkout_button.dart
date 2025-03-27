@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mockhang_app/user/pages/checkout/oder/customer_orders_page.dart';
+import 'package:mockhang_app/user/pages/checkout/order/customer_orders_page.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mockhang_app/admin/data/models/order_model.dart';

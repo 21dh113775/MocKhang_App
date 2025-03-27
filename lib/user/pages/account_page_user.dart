@@ -17,10 +17,25 @@ class _AccountPageUserState extends State<AccountPageUser> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _streetAddressController =
+      TextEditingController();
+  final TextEditingController _wardController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  String? _selectedCity;
+  bool _isDefaultAddress = false;
 
-  File? _selectedImage;
+  File? _selectedImage; // Biến lưu trữ hình ảnh đã chọn
   bool _isEditing = false;
   bool _isLoading = false;
+
+  final List<String> _cities = [
+    'Hà Nội',
+    'TP. Hồ Chí Minh',
+    'Đà Nẵng',
+    'Cần Thơ',
+    'Hải Phòng',
+    // ... thêm các tỉnh thành khác
+  ]..sort();
 
   @override
   void initState() {
@@ -35,14 +50,32 @@ class _AccountPageUserState extends State<AccountPageUser> {
       _isLoading = true;
     });
 
-    await userProvider.refreshUserData();
-    //await userProvider.checkProfileStatus();
+    await userProvider.refreshUserData(); // Làm mới dữ liệu người dùng
 
     final user = userProvider.currentUser;
     if (user != null) {
       _fullNameController.text = user.fullName;
       _phoneNumberController.text = user.phoneNumber ?? '';
       _addressController.text = user.address ?? '';
+
+      try {
+        final addressParts =
+            user.address?.split(',').map((e) => e.trim()).toList();
+        if (addressParts != null) {
+          _streetAddressController.text = addressParts[0];
+          if (addressParts.length > 1) {
+            _wardController.text = addressParts[1];
+          }
+          if (addressParts.length > 2) {
+            _districtController.text = addressParts[2];
+          }
+          if (addressParts.length > 3) {
+            _selectedCity = addressParts.last;
+          }
+        }
+      } catch (e) {
+        print("Error parsing address: $e");
+      }
     }
 
     setState(() {
@@ -50,6 +83,7 @@ class _AccountPageUserState extends State<AccountPageUser> {
     });
   }
 
+  // Hàm để chọn hình ảnh từ thư viện
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -61,19 +95,33 @@ class _AccountPageUserState extends State<AccountPageUser> {
     }
   }
 
+  // Hàm để lưu thông tin người dùng (bao gồm ảnh)
   Future<void> _saveChanges() async {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
       });
 
+      final List<String> addressParts = [];
+      if (_streetAddressController.text.trim().isNotEmpty)
+        addressParts.add(_streetAddressController.text.trim());
+      if (_wardController.text.trim().isNotEmpty)
+        addressParts.add(_wardController.text.trim());
+      if (_districtController.text.trim().isNotEmpty)
+        addressParts.add(_districtController.text.trim());
+      if (_selectedCity != null && _selectedCity!.isNotEmpty)
+        addressParts.add(_selectedCity!);
+
+      final completeAddress = addressParts.join(', ');
+
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
       final bool success = await userProvider.completeUserProfile(
         fullName: _fullNameController.text,
         phoneNumber: _phoneNumberController.text,
-        address: _addressController.text,
-        avatarFile: _selectedImage,
+        address: completeAddress,
+        avatarFile: _selectedImage, // Truyền hình ảnh nếu người dùng đã chọn
+        isDefaultAddress: _isDefaultAddress,
       );
 
       setState(() {
@@ -82,23 +130,19 @@ class _AccountPageUserState extends State<AccountPageUser> {
       });
 
       if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cập nhật thông tin thành công'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật thông tin thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(userProvider.errorMessage ?? 'Cập nhật thất bại'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(userProvider.errorMessage ?? 'Cập nhật thất bại'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -134,8 +178,7 @@ class _AccountPageUserState extends State<AccountPageUser> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!user.isProfileCompleted) _buildProfileCompletionMessage(),
-
-                _buildUserInfoSection(user, userProvider),
+                _buildUserInfoSection(user),
               ],
             ),
           );
@@ -152,6 +195,7 @@ class _AccountPageUserState extends State<AccountPageUser> {
     );
   }
 
+  // Hiển thị thông điệp yêu cầu người dùng cập nhật hồ sơ
   Widget _buildProfileCompletionMessage() {
     return Card(
       color: Colors.amber[100],
@@ -192,10 +236,12 @@ class _AccountPageUserState extends State<AccountPageUser> {
     );
   }
 
-  Widget _buildUserInfoSection(UserModel user, UserProvider userProvider) {
+  // Hiển thị thông tin người dùng
+  Widget _buildUserInfoSection(UserModel user) {
     return _isEditing ? _buildEditForm() : _buildUserInfoDisplay(user);
   }
 
+  // Hiển thị thông tin người dùng (xem trước)
   Widget _buildUserInfoDisplay(UserModel user) {
     return Card(
       elevation: 2,
@@ -257,28 +303,22 @@ class _AccountPageUserState extends State<AccountPageUser> {
     );
   }
 
+  // Hiển thị thông tin chi tiết
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: Colors.blue, size: 20),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-              Text(value, style: const TextStyle(fontSize: 16)),
-            ],
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 16))),
         ],
       ),
     );
   }
 
+  // Form chỉnh sửa thông tin người dùng
   Widget _buildEditForm() {
     final user = Provider.of<UserProvider>(context).currentUser;
 
@@ -360,21 +400,134 @@ class _AccountPageUserState extends State<AccountPageUser> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _addressController,
-            decoration: const InputDecoration(
-              labelText: 'Địa chỉ',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on),
+          const SizedBox(height: 20),
+          // Phần địa chỉ cải tiến
+          Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.grey.shade300),
             ),
-            maxLines: 3,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Vui lòng nhập địa chỉ';
-              }
-              return null;
-            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Địa chỉ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  TextFormField(
+                    controller: _streetAddressController,
+                    decoration: const InputDecoration(
+                      labelText: 'Số nhà, tên đường',
+                      hintText: 'Ví dụ: 123 Nguyễn Văn A',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.home),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Vui lòng nhập địa chỉ';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _wardController,
+                          decoration: const InputDecoration(
+                            labelText: 'Phường/Xã',
+                            hintText: 'Ví dụ: Phường 1',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Vui lòng nhập phường/xã';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _districtController,
+                          decoration: const InputDecoration(
+                            labelText: 'Quận/Huyện',
+                            hintText: 'Ví dụ: Quận 1',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Vui lòng nhập quận/huyện';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Tỉnh/Thành phố',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.location_city),
+                    ),
+                    value: _selectedCity,
+                    hint: const Text('Chọn tỉnh/thành phố'),
+                    isExpanded: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Vui lòng chọn tỉnh/thành phố';
+                      }
+                      return null;
+                    },
+                    items:
+                        _cities.map((String city) {
+                          return DropdownMenuItem<String>(
+                            value: city,
+                            child: Text(city),
+                          );
+                        }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedCity = newValue;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _isDefaultAddress,
+                        activeColor: Colors.blue,
+                        onChanged: (value) {
+                          setState(() {
+                            _isDefaultAddress = value ?? false;
+                          });
+                        },
+                      ),
+                      const Text('Đặt làm địa chỉ mặc định'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -386,6 +539,9 @@ class _AccountPageUserState extends State<AccountPageUser> {
     _fullNameController.dispose();
     _phoneNumberController.dispose();
     _addressController.dispose();
+    _streetAddressController.dispose();
+    _wardController.dispose();
+    _districtController.dispose();
     super.dispose();
   }
 }
