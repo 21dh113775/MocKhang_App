@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mockhang_app/admin/data/data_sources/discount_db.dart';
 import 'package:mockhang_app/admin/data/models/discount_model.dart';
 import 'package:uuid/uuid.dart';
@@ -55,40 +56,66 @@ class DiscountRepository {
         checkDigit; // So sánh với ký tự kiểm tra cuối cùng
   }
 
+  Future<DiscountModel> safeCreateDiscount(DiscountModel discount) async {
+    try {
+      // Validation chi tiết
+      if (discount.name.isEmpty) {
+        throw ArgumentError('Tên khuyến mãi không được để trống');
+      }
+
+      // Kiểm tra giá trị
+      if (discount.value <= 0) {
+        throw ArgumentError('Giá trị khuyến mãi phải lớn hơn 0');
+      }
+
+      // Gọi phương thức tạo discount với các kiểm tra bổ sung
+      return await createDiscount(discount);
+    } on FirebaseException catch (e) {
+      // Xử lý các lỗi Firebase cụ thể
+      switch (e.code) {
+        case 'permission-denied':
+          throw Exception('Không có quyền tạo khuyến mãi');
+        case 'unavailable':
+          throw Exception('Mạng không khả dụng');
+        default:
+          throw Exception('Lỗi Firebase: ${e.message}');
+      }
+    } catch (e) {
+      // Xử lý các ngoại lệ khác
+      throw Exception('Lỗi không xác định: $e');
+    }
+  }
+
   // Thêm khuyến mãi với xử lý ngoại lệ và log chi tiết
   Future<DiscountModel> createDiscount(DiscountModel discount) async {
     try {
-      // Kiểm tra xem discount có hợp lệ không
-      if (discount.name.isEmpty || discount.value <= 0) {
-        throw ArgumentError('Tên khuyến mãi hoặc giá trị không hợp lệ');
-      }
+      // Chi tiết log
+      print('Bắt đầu tạo discount');
+      print('Thông tin discount: ${discount.toJson()}');
 
-      // Tạo ID và mã vạch duy nhất
+      // Kiểm tra kết nối Firestore
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection('test').add({'test': 'connection'});
+
       final id = _uuid.v4();
       final barcode = generateBarcode(id);
 
-      // Tạo khuyến mãi mới với ID và mã vạch
       final newDiscount = discount.copyWith(id: id, barcode: barcode);
 
-      // Thêm vào Firestore
-      await DiscountDatabase.discountsCollection
-          .doc(id)
-          .set(newDiscount.toJson());
+      await firestore.collection('discounts').doc(id).set(newDiscount.toJson());
 
-      developer.log(
-        'Thêm khuyến mãi thành công',
-        name: 'DiscountRepository',
-        error: {'discountId': id, 'discountName': newDiscount.name},
-      );
-
+      print('Tạo discount thành công: $id');
       return newDiscount;
+    } on FirebaseException catch (e) {
+      // Log chi tiết lỗi Firebase
+      print('Mã lỗi Firebase: ${e.code}');
+      print('Chi tiết lỗi: ${e.message}');
+      print('Chi tiết: ${e.toString()}');
+      rethrow;
     } catch (e) {
-      developer.log(
-        'Lỗi khi thêm khuyến mãi',
-        name: 'DiscountRepository',
-        error: e,
-      );
-      rethrow; // Ném lại exception để gọi hàm xử lý ở tầng trên
+      // Log các lỗi khác
+      print('Lỗi không xác định: $e');
+      rethrow;
     }
   }
 

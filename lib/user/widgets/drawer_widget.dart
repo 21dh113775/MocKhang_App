@@ -96,8 +96,6 @@ class DrawerWidget extends StatelessWidget {
                         Navigator.pushNamed(context, '/cart');
                       }
                     },
-                    showBadge: true,
-                    badgeCount: 3, // Có thể thay đổi thành tham số động
                   ),
                   _buildMenuItem(
                     icon: Icons.favorite_rounded,

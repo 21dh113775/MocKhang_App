@@ -1,6 +1,7 @@
 import 'package:animated_snack_bar/animated_snack_bar.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mockhang_app/admin/data/models/discount_model.dart';
 import 'package:mockhang_app/admin/pages/discount/discount_add.dart';
 import 'package:mockhang_app/admin/pages/discount/discount_detail_page_admin%20.dart';
@@ -242,67 +243,165 @@ class DiscountTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: _getStatusColor(), width: 1.5),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Tiêu đề và menu tùy chọn
             Row(
               children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                Expanded(
+                  child: Text(
+                    discount.name,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Spacer(),
                 _buildPopupMenu(context),
               ],
             ),
-            SizedBox(height: 8),
-            Text(
-              discount.name,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 4),
-            Text(
-              discount.description ?? "Không có mô tả",
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            SizedBox(height: 8),
+
+            SizedBox(height: 12),
+
+            // Thông tin chi tiết khuyến mãi
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildInfoChip(
+                _buildDetailChip(
                   context,
-                  "Giá trị: ${discount.value}${discount.type == 'percentage' ? '%' : 'đ'}",
-                  Icons.monetization_on,
+                  Icons.discount_outlined,
+                  'Loại',
+                  _getDiscountTypeText(discount.type),
                 ),
-                SizedBox(width: 8),
-                _buildInfoChip(
+                _buildDetailChip(
                   context,
-                  "Loại: ${_getDiscountTypeText(discount.type)}",
-                  Icons.category,
+                  Icons.monetization_on_outlined,
+                  'Giá trị',
+                  _formatDiscountValue(),
                 ),
               ],
             ),
-            SizedBox(height: 8),
+
+            SizedBox(height: 12),
+
+            // Thời gian hiệu lực
+            Row(
+              children: [
+                Icon(Icons.calendar_month, size: 16, color: Colors.grey),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _formatDiscountPeriod(),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+
+            // Mô tả (nếu có)
+            if (discount.description != null &&
+                discount.description!.isNotEmpty) ...[
+              SizedBox(height: 12),
+              Text(
+                'Mô tả: ${discount.description}',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+
+            // Mã vạch (nếu có)
             if (discount.barcode != null && discount.barcode!.isNotEmpty) ...[
-              Divider(),
+              SizedBox(height: 12),
               Center(
                 child: BarcodeWidget(
                   barcode: Barcode.code128(),
                   data: discount.barcode!,
-                  width: 200,
-                  height: 70,
+                  width: 250,
+                  height: 80,
                   drawText: true,
                 ),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  // Định dạng giá trị khuyến mãi
+  String _formatDiscountValue() {
+    final value = discount.value;
+    return discount.type == 'Giảm theo phần trăm'
+        ? '$value%'
+        : '${NumberFormat('#,##0').format(value)} đ';
+  }
+
+  // Định dạng thời gian hiệu lực khuyến mãi
+  String _formatDiscountPeriod() {
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    return 'Từ ${DateFormat('dd/MM/yyyy HH:mm').format(startDate)} '
+        'đến ${DateFormat('dd/MM/yyyy HH:mm').format(endDate)}';
+  }
+
+  // Lấy màu trạng thái của khuyến mãi
+  Color _getStatusColor() {
+    final now = DateTime.now();
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    if (now.isBefore(startDate)) return Colors.blue.shade100;
+    if (now.isAfter(endDate)) return Colors.red.shade100;
+    return Colors.green.shade100;
+  }
+
+  // Xây dựng chip chi tiết
+  Widget _buildDetailChip(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).primaryColor),
+          SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Text(
+                value,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

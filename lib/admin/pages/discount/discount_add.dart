@@ -1,4 +1,5 @@
 import 'package:barcode_widget/barcode_widget.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/discount_model.dart';
 import 'package:mockhang_app/admin/providers/discount_provider.dart';
@@ -14,28 +15,37 @@ class _DiscountAddPageAdminState extends State<DiscountAddPageAdmin> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController valueController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController barcodeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String selectedType = 'Percentage'; // Loại khuyến mãi mặc định
-  DateTime? selectedStartDate;
-  DateTime? selectedEndDate;
-  String barcode = '';
 
-  final List<String> discountTypes = ['Percentage', 'Fixed Amount'];
+  String selectedType = 'Giảm theo phần trăm';
+  DateTime? selectedStartDateTime;
+  DateTime? selectedEndDateTime;
+  String? generatedBarcode;
+
+  final List<String> discountTypes = [
+    'Giảm theo phần trăm',
+    'Giảm theo số tiền cố định',
+    'Miễn phí vận chuyển',
+    'Mua 1 tặng 1',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Thêm Khuyến Mãi Mới")),
+      appBar: AppBar(title: Text("Tạo Khuyến Mãi Mới")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Tên khuyến mãi
               TextFormField(
                 controller: nameController,
-                decoration: InputDecoration(labelText: 'Tên Khuyến Mãi'),
+                decoration: InputDecoration(
+                  labelText: 'Tên Khuyến Mãi',
+                  prefixIcon: Icon(Icons.label_important),
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Vui lòng nhập tên khuyến mãi';
@@ -43,25 +53,15 @@ class _DiscountAddPageAdminState extends State<DiscountAddPageAdmin> {
                   return null;
                 },
               ),
-              // Giá trị khuyến mãi
-              TextFormField(
-                controller: valueController,
-                decoration: InputDecoration(labelText: 'Giá trị'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập giá trị';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Giá trị phải là số';
-                  }
-                  return null;
-                },
-              ),
+              SizedBox(height: 16),
+
               // Loại khuyến mãi
               DropdownButtonFormField<String>(
                 value: selectedType,
-                decoration: InputDecoration(labelText: 'Loại Khuyến Mãi'),
+                decoration: InputDecoration(
+                  labelText: 'Loại Khuyến Mãi',
+                  prefixIcon: Icon(Icons.category),
+                ),
                 items:
                     discountTypes.map((String type) {
                       return DropdownMenuItem<String>(
@@ -75,51 +75,113 @@ class _DiscountAddPageAdminState extends State<DiscountAddPageAdmin> {
                   });
                 },
               ),
-              // Thời gian bắt đầu
-              ListTile(
-                title: Text(
-                  'Thời gian bắt đầu: ${selectedStartDate != null ? DateFormat('dd/MM/yyyy').format(selectedStartDate!) : 'Chưa chọn'}',
+              SizedBox(height: 16),
+
+              // Giá trị khuyến mãi
+              TextFormField(
+                controller: valueController,
+                decoration: InputDecoration(
+                  labelText: 'Giá trị Khuyến Mãi',
+                  prefixIcon: Icon(Icons.money),
+                  suffixText: selectedType == 'Giảm theo phần trăm' ? '%' : 'đ',
                 ),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => _selectStartDate(context),
-              ),
-              // Thời gian kết thúc
-              ListTile(
-                title: Text(
-                  'Thời gian kết thúc: ${selectedEndDate != null ? DateFormat('dd/MM/yyyy').format(selectedEndDate!) : 'Chưa chọn'}',
-                ),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => _selectEndDate(context),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập giá trị';
+                  }
+                  final numValue = double.tryParse(value);
+                  if (numValue == null) {
+                    return 'Giá trị phải là số';
+                  }
+                  if (selectedType == 'Giảm theo phần trăm' && numValue > 100) {
+                    return 'Phần trăm không được vượt quá 100%';
+                  }
+                  return null;
+                },
               ),
               SizedBox(height: 16),
+
+              // Thời gian bắt đầu
+              _buildDateTimePicker(
+                label: 'Thời gian bắt đầu',
+                dateTime: selectedStartDateTime,
+                onDateTimeChanged: (DateTime picked) {
+                  setState(() {
+                    selectedStartDateTime = picked;
+                  });
+                },
+              ),
+              SizedBox(height: 16),
+
+              // Thời gian kết thúc
+              _buildDateTimePicker(
+                label: 'Thời gian kết thúc',
+                dateTime: selectedEndDateTime,
+                onDateTimeChanged: (DateTime picked) {
+                  setState(() {
+                    selectedEndDateTime = picked;
+                  });
+                },
+              ),
+              SizedBox(height: 16),
+
+              // Mã vạch
+              TextFormField(
+                controller: barcodeController,
+                decoration: InputDecoration(
+                  labelText: 'Mã Vạch (Tùy chọn)',
+                  prefixIcon: Icon(Icons.qr_code),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.grade_rounded),
+                    onPressed: _generateBarcode,
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+
               // Mô tả
               TextFormField(
                 controller: descriptionController,
-                decoration: InputDecoration(labelText: 'Mô Tả'),
+                decoration: InputDecoration(
+                  labelText: 'Mô Tả',
+                  prefixIcon: Icon(Icons.description),
+                ),
                 maxLines: 3,
               ),
               SizedBox(height: 16),
-              // Button thêm
-              ElevatedButton(
+
+              // Nút thêm khuyến mãi
+              ElevatedButton.icon(
                 onPressed: _addDiscount,
-                child: Text('Thêm Khuyến Mãi'),
+                icon: Icon(Icons.add_circle_outline),
+                label: Text('Tạo Khuyến Mãi'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
-              if (barcode.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
+
+              // Hiển thị mã vạch (nếu có)
+              if (generatedBarcode != null) ...[
+                SizedBox(height: 16),
+                Center(
                   child: Column(
                     children: [
-                      Text("Mã vạch khuyến mãi: $barcode"),
-                      // Hiển thị mã vạch
+                      Text(
+                        "Mã Vạch Khuyến Mãi",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       BarcodeWidget(
-                        barcode: Barcode.code128(), // Sử dụng Barcode Code 128
-                        data: barcode, // Dữ liệu mã vạch (barcode)
-                        width: 200, // Chiều rộng của mã vạch
-                        height: 100, // Chiều cao của mã vạch
+                        barcode: Barcode.code128(),
+                        data: generatedBarcode!,
+                        width: 250,
+                        height: 100,
+                        drawText: true,
                       ),
                     ],
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -127,63 +189,160 @@ class _DiscountAddPageAdminState extends State<DiscountAddPageAdmin> {
     );
   }
 
-  // Hàm chọn thời gian bắt đầu
-  Future<void> _selectStartDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedStartDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+  // Widget xây dựng picker ngày giờ
+  Widget _buildDateTimePicker({
+    required String label,
+    required DateTime? dateTime,
+    required Function(DateTime) onDateTimeChanged,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final pickedDateTime = await showDateTimePicker(context, dateTime);
+        if (pickedDateTime != null) {
+          onDateTimeChanged(pickedDateTime);
+        }
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(Icons.calendar_today),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          border: OutlineInputBorder(),
+        ),
+        child: Text(
+          dateTime != null
+              ? DateFormat('dd/MM/yyyy HH:mm').format(dateTime)
+              : 'Chưa chọn',
+          style: TextStyle(fontSize: 16),
+        ),
+      ),
     );
-    if (picked != null && picked != selectedStartDate)
-      setState(() {
-        selectedStartDate = picked;
-      });
   }
 
-  // Hàm chọn thời gian kết thúc
-  Future<void> _selectEndDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  // Hàm hiển thị picker ngày giờ
+  Future<DateTime?> showDateTimePicker(
+    BuildContext context,
+    DateTime? initialDateTime,
+  ) async {
+    return await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: selectedEndDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+      builder: (context) {
+        DateTime? selectedDateTime = initialDateTime ?? DateTime.now();
+        return Container(
+          height: 300,
+          child: Column(
+            children: [
+              Expanded(
+                child: CupertinoDatePicker(
+                  initialDateTime: selectedDateTime,
+                  mode: CupertinoDatePickerMode.dateAndTime,
+                  onDateTimeChanged: (DateTime newDateTime) {
+                    selectedDateTime = newDateTime;
+                  },
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(selectedDateTime),
+                child: Text('Xác Nhận'),
+              ),
+            ],
+          ),
+        );
+      },
     );
-    if (picked != null && picked != selectedEndDate)
-      setState(() {
-        selectedEndDate = picked;
-      });
+  }
+
+  // Hàm sinh mã vạch tự động
+  void _generateBarcode() {
+    final generatedCode = DateTime.now().millisecondsSinceEpoch.toString();
+    setState(() {
+      generatedBarcode = generatedCode;
+      barcodeController.text = generatedCode;
+    });
   }
 
   // Hàm thêm khuyến mãi
-  void _addDiscount() {
-    if (_formKey.currentState!.validate() &&
-        selectedStartDate != null &&
-        selectedEndDate != null) {
-      final discountProvider = Provider.of<DiscountProvider>(
-        context,
-        listen: false,
+  void _addDiscount() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Kiểm tra logic ngày giờ
+    if (selectedStartDateTime == null || selectedEndDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vui lòng chọn đầy đủ thời gian bắt đầu và kết thúc'),
+          backgroundColor: Colors.red,
+        ),
       );
+      return;
+    }
+
+    if (selectedStartDateTime!.isAfter(selectedEndDateTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Thời gian bắt đầu phải trước thời gian kết thúc'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(child: CircularProgressIndicator()),
+    );
+
+    final discountProvider = Provider.of<DiscountProvider>(
+      context,
+      listen: false,
+    );
+
+    try {
       final newDiscount = DiscountModel(
-        id: '', // ID sẽ được tạo tự động
-        name: nameController.text,
+        id: '',
+        name: nameController.text.trim(),
         type: selectedType,
-        value: double.parse(valueController.text),
-        startDate: selectedStartDate!.millisecondsSinceEpoch,
-        endDate: selectedEndDate!.millisecondsSinceEpoch,
-        code: '', // Chưa sử dụng code ở đây
-        description: descriptionController.text,
-        barcode: '', // Mã vạch sẽ được tạo và gán sau khi thêm khuyến mãi
+        value: double.parse(valueController.text.trim()),
+        startDate: selectedStartDateTime!.millisecondsSinceEpoch,
+        endDate: selectedEndDateTime!.millisecondsSinceEpoch,
+        description: descriptionController.text.trim(),
+        barcode: generatedBarcode ?? barcodeController.text.trim(),
       );
 
-      discountProvider.addDiscount(newDiscount).then((discount) {
-        setState(() {
-          barcode = discount?.barcode ?? ''; // Gán mã vạch vào biến barcode
-        });
+      final createdDiscount = await discountProvider.addDiscount(newDiscount);
 
-        // Sau khi thêm khuyến mãi xong, quay lại trang trước
-        Navigator.pop(context);
-      });
+      // Đóng loading dialog
+      Navigator.of(context).pop();
+
+      if (createdDiscount != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thêm khuyến mãi thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Quay lại trang trước
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể thêm khuyến mãi. Vui lòng thử lại.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Đóng loading dialog
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }
