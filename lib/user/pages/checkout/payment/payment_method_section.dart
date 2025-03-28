@@ -34,6 +34,7 @@ class PaymentMethodSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Tiêu đề và biểu tượng
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -57,22 +58,26 @@ class PaymentMethodSection extends StatelessWidget {
             ),
             const Divider(thickness: 1),
             const SizedBox(height: 8),
-            // Tạo danh sách các tùy chọn thanh toán từ mảng
+
+            // Danh sách các tùy chọn thanh toán
             ...paymentMethods.map(
               (method) => _buildPaymentOption(
                 id: method['id'] as String,
                 title: method['title'] as String,
                 icon: method['icon'] as IconData,
                 isSelected: cartProvider.paymentMethod == method['id'],
-                onSelect:
-                    () => cartProvider.setPaymentMethod(method['id'] as String),
+                onSelect: () {
+                  cartProvider.setPaymentMethod(method['id'] as String);
+                },
               ),
             ),
             const SizedBox(height: 8),
+
+            // Các form chi tiết cho từng phương thức thanh toán
             if (cartProvider.paymentMethod == 'Credit Card')
               _buildCreditCardForm(),
             if (cartProvider.paymentMethod == 'Bank Transfer')
-              _buildBankTransferInfo(),
+              _buildBankTransferSection(context),
           ],
         ),
       ),
@@ -145,7 +150,7 @@ class PaymentMethodSection extends StatelessWidget {
     );
   }
 
-  // Widget hiển thị form nhập thông tin thẻ tín dụng
+  // Form nhập thông tin thẻ tín dụng
   Widget _buildCreditCardForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,33 +206,75 @@ class PaymentMethodSection extends StatelessWidget {
     );
   }
 
-  // Widget hiển thị thông tin chuyển khoản ngân hàng
-  Widget _buildBankTransferInfo() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'Thông tin chuyển khoản:',
-            style: TextStyle(fontWeight: FontWeight.bold),
+  // Phần chuyển khoản ngân hàng
+  Widget _buildBankTransferSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.withOpacity(0.3)),
           ),
-          SizedBox(height: 8),
-          Text('Ngân hàng: Vietcombank'),
-          Text('Số tài khoản: 1234567890'),
-          Text('Chủ tài khoản: CÔNG TY MOCKHANG'),
-          SizedBox(height: 8),
-          Text(
-            'Nội dung chuyển khoản: [Mã đơn hàng]',
-            style: TextStyle(fontStyle: FontStyle.italic),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Thông tin chuyển khoản:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('Ngân hàng: Vietcombank'),
+              Text('Số tài khoản: 1234567890'),
+              Text('Chủ tài khoản: CÔNG TY MOCKHANG'),
+              SizedBox(height: 8),
+              Text(
+                'Nội dung chuyển khoản: [Mã đơn hàng]',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          decoration: const InputDecoration(
+            labelText: 'Mã giao dịch ngân hàng',
+            hintText: 'Nhập mã giao dịch từ ngân hàng',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) {
+            // Lưu mã giao dịch vào provider
+            cartProvider.setTransactionCode(value);
+          },
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton(
+          onPressed:
+              cartProvider.transactionCode != null &&
+                      cartProvider.transactionCode!.isNotEmpty
+                  ? () {
+                    try {
+                      cartProvider.confirmBankTransfer(
+                        transactionCode: cartProvider.transactionCode!,
+                        amount: cartProvider.total + cartProvider.shippingCost,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Xác nhận thanh toán thành công'),
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+                      );
+                    }
+                  }
+                  : null,
+          child: const Text('Xác nhận thanh toán'),
+        ),
+      ],
     );
   }
 }

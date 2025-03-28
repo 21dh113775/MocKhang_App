@@ -24,7 +24,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    DashboardPage(),
+    AdminDashboardPage(),
     AccountPageAdmin(),
     CategoryPage(),
     ProductPageAdmin(),

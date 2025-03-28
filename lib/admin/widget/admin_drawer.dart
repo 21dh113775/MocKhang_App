@@ -14,7 +14,9 @@ class AdminDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.brown),
+            decoration: BoxDecoration(
+              color: Color(0xFF2C3E50), // Deep blue-gray
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,

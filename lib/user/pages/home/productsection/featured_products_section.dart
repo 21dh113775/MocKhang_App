@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:mockhang_app/user/pages/home/productsection/featured_tab_bar.dart';
 import 'package:mockhang_app/user/pages/home/productsection/product_grid.dart';
-import 'package:mockhang_app/user/pages/home/section_widgets.dart';
+import 'package:mockhang_app/user/pages/home/widget/section_widgets.dart';
 import 'dart:math';
 
 class FeaturedProductsSection extends StatefulWidget {

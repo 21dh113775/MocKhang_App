@@ -7,6 +7,16 @@ class CartProvider extends ChangeNotifier {
   final List<CartItem> _items = [];
   DiscountModel? _appliedDiscount;
 
+  // Thêm các thuộc tính mới cho thanh toán ngân hàng
+  String? _transactionCode;
+  bool _isPaymentConfirmed = false;
+  DateTime? _paymentConfirmationTime;
+
+  // Thêm getter cho các thuộc tính mới
+  String? get transactionCode => _transactionCode;
+  bool get isPaymentConfirmed => _isPaymentConfirmed;
+  DateTime? get paymentConfirmationTime => _paymentConfirmationTime;
+
   // Thêm các thuộc tính mới cho phương thức thanh toán và vận chuyển
   String? _paymentMethod;
   String? _shippingMethod;
@@ -19,6 +29,87 @@ class CartProvider extends ChangeNotifier {
   String? get paymentMethod => _paymentMethod;
   String? get shippingMethod => _shippingMethod;
   String? get orderMessage => _orderMessage;
+
+  // Phương thức đặt mã giao dịch ngân hàng
+  void setTransactionCode(String code) {
+    _transactionCode = code;
+    notifyListeners();
+  }
+
+  // Phương thức xác nhận thanh toán ngân hàng
+  void confirmBankTransfer({
+    required String transactionCode,
+    required double amount,
+  }) {
+    // Kiểm tra các điều kiện xác nhận thanh toán
+    if (_paymentMethod != 'Bank Transfer') {
+      throw Exception('Phương thức thanh toán không hợp lệ');
+    }
+
+    if (transactionCode.isEmpty) {
+      throw Exception('Mã giao dịch không được để trống');
+    }
+
+    // Kiểm tra số tiền thanh toán (tùy chọn)
+    if (amount != total + shippingCost) {
+      throw Exception('Số tiền thanh toán không chính xác');
+    }
+
+    // Cập nhật trạng thái thanh toán
+    _transactionCode = transactionCode;
+    _isPaymentConfirmed = true;
+    _paymentConfirmationTime = DateTime.now();
+
+    // Ghi log hoặc thực hiện các hành động cần thiết
+    _logPaymentConfirmation();
+
+    notifyListeners();
+  }
+
+  // Phương thức hủy xác nhận thanh toán
+  void cancelPaymentConfirmation() {
+    _transactionCode = null;
+    _isPaymentConfirmed = false;
+    _paymentConfirmationTime = null;
+    notifyListeners();
+  }
+
+  // Phương thức ghi log xác nhận thanh toán
+  void _logPaymentConfirmation() {
+    print('Xác nhận thanh toán: $paymentMethod');
+    print('Mã giao dịch: $transactionCode');
+    print('Số tiền: ${total + shippingCost}');
+    print('Thời gian: $paymentConfirmationTime');
+  }
+
+  // Phương thức kiểm tra và chuẩn bị thanh toán
+  bool validatePayment() {
+    // Kiểm tra các điều kiện thanh toán
+    if (!isValidCheckout) {
+      print('Thông tin đơn hàng chưa đủ');
+      return false;
+    }
+
+    if (_paymentMethod == 'Bank Transfer' && _transactionCode == null) {
+      print('Chưa nhập mã giao dịch chuyển khoản');
+      return false;
+    }
+
+    return true;
+  }
+
+  // Phương thức hoàn tất đơn hàng
+  void completeOrder() {
+    // Kiểm tra và xác nhận thanh toán
+    if (!validatePayment()) {
+      return;
+    }
+
+    // Thực hiện các bước cuối cùng của đơn hàng
+    // Ví dụ: gửi đơn hàng, làm trống giỏ hàng, v.v.
+    print('Đơn hàng đã được xác nhận');
+    // clearCart(); // Làm trống giỏ hàng sau khi hoàn tất
+  }
 
   void _safeNotifyListeners() {
     if (WidgetsBinding.instance != null) {

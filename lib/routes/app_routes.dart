@@ -10,7 +10,7 @@ import 'package:mockhang_app/user/pages/checkout/checkout_page.dart';
 import 'package:mockhang_app/user/pages/checkout/order/order_history_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
 import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
-import 'package:mockhang_app/user/pages/home/favorite_page.dart';
+import 'package:mockhang_app/user/pages/home/widget/favorite_page.dart';
 import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'package:mockhang_app/user/pages/notifications_page_user.dart';
 import 'package:mockhang_app/user/pages/product_page.dart';

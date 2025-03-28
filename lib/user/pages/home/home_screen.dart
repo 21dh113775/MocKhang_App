@@ -7,10 +7,10 @@ import 'package:mockhang_app/user/pages/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
 import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
-import 'package:mockhang_app/user/pages/home/banner_section.dart';
-import 'package:mockhang_app/user/pages/home/category_section.dart';
+import 'package:mockhang_app/user/pages/home/widget/banner_section.dart';
+import 'package:mockhang_app/user/pages/home/widget/category_section.dart';
 import 'package:mockhang_app/user/pages/home/productsection/product_section.dart';
-import 'package:mockhang_app/user/pages/home/search_bar.dart';
+import 'package:mockhang_app/user/pages/home/widget/search_bar.dart';
 import 'package:mockhang_app/user/widgets/bottom_nav_bar_widget.dart';
 import 'package:mockhang_app/user/widgets/drawer_widget.dart';
 import 'package:provider/provider.dart';
@@ -87,7 +87,10 @@ class _HomePageState extends State<HomeScreen> {
   Widget _buildHomePage() {
     return RefreshIndicator(
       onRefresh: _loadData,
+      backgroundColor: Colors.white,
       color: Colors.brown,
+      strokeWidth: 3.0,
+      triggerMode: RefreshIndicatorTriggerMode.onEdge,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
@@ -154,24 +157,38 @@ class _HomePageState extends State<HomeScreen> {
           ),
         ],
       ),
+
       drawer: const DrawerWidget(),
-      // Hiển thị trang tương ứng với tab được chọn
-      body: _pages[_currentIndex],
-      floatingActionButton:
-          _currentIndex == 0
-              ? FloatingActionButton(
+      // Thay đổi phần body để luôn hiển thị bottom nav bar
+      body: Stack(
+        children: [
+          // Trang nội dung hiện tại
+          Positioned.fill(child: _pages[_currentIndex]),
+
+          // Floating Action Button (nếu ở trang chủ)
+          if (_currentIndex == 0)
+            Positioned(
+              bottom: 80, // Điều chỉnh vị trí so với bottom nav bar
+              right: 16,
+              child: FloatingActionButton(
                 onPressed: () {
-                  // Scroll to top functionality
-                  Scrollable.ensureVisible(
-                    context,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
+                  PrimaryScrollController.of(context).animateTo(
+                    0.0,
+                    duration: Duration(milliseconds: 300),
+                    curve: Curves.easeInOutQuad,
                   );
                 },
-                backgroundColor: Colors.brown,
-                child: const Icon(Icons.arrow_upward, color: Colors.white),
-              )
-              : null,
+                backgroundColor: Colors.brown[700],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.arrow_upward, color: Colors.white, size: 28),
+              ),
+            ),
+        ],
+      ),
+
+      // Bottom Navigation Bar luôn cố định
       bottomNavigationBar: BottomNavBarWidget(
         currentIndex: _currentIndex,
         onItemSelected: (index) {
@@ -179,7 +196,7 @@ class _HomePageState extends State<HomeScreen> {
             _currentIndex = index;
           });
         },
-        showLabels: false, // Không hiển thị nhãn dưới NavBarj
+        showLabels: false,
       ),
     );
   }

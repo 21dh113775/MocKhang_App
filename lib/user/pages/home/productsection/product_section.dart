@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:mockhang_app/user/pages/home/productsection/category_section_product.dart';
 import 'package:mockhang_app/user/pages/home/productsection/featured_products_section.dart';
-import 'package:mockhang_app/user/pages/home/section_widgets.dart';
-import 'package:mockhang_app/user/pages/home/category_section.dart';
+import 'package:mockhang_app/user/pages/home/widget/section_widgets.dart';
+import 'package:mockhang_app/user/pages/home/widget/category_section.dart';
 
 class ProductSection extends StatefulWidget {
   final bool isLoading;
