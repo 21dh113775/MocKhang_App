@@ -85,13 +85,30 @@ class _AccountPageUserState extends State<AccountPageUser> {
 
   // Hàm để chọn hình ảnh từ thư viện
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImage = File(pickedFile.path);
-      });
+      print("PickImage result: ${pickedFile?.path ?? 'null'}");
+
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
+        print("Selected image file exists: ${file.existsSync()}");
+
+        setState(() {
+          _selectedImage = file;
+        });
+      } else {
+        print("No image selected");
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể chọn ảnh: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

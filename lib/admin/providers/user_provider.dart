@@ -12,6 +12,10 @@ class UserProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Cache collection reference để tránh khởi tạo lại nhiều lần
+  final CollectionReference _usersCollection = FirebaseFirestore.instance
+      .collection('users');
+
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
@@ -20,6 +24,11 @@ class UserProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
+
+  // Đệm cho danh sách người dùng - giảm truy vấn Firestore
+  DateTime? _lastUserListFetch;
+  final Duration _userListCacheDuration = Duration(minutes: 5);
 
   UserModel? get currentUser => _currentUser;
   List<UserModel> get allUsers => _allUsers;
@@ -29,24 +38,32 @@ class UserProvider extends ChangeNotifier {
   bool get isProfileComplete => _currentUser?.isProfileCompleted ?? false;
   bool get isAdmin => _currentUser?.role == 'admin';
 
+  // Nâng cấp _safeNotifyListeners với debounce
+  Timer? _notifyDebounceTimer;
   void _safeNotifyListeners() {
-    if (WidgetsBinding.instance != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          notifyListeners();
-        } catch (e) {
-          print('UserProvider: Error during notifyListeners: $e');
-        }
-      });
-    } else {
-      Future.microtask(() {
-        try {
-          notifyListeners();
-        } catch (e) {
-          print('UserProvider: Error during notifyListeners: $e');
-        }
-      });
-    }
+    // Hủy timer trước đó nếu còn active
+    _notifyDebounceTimer?.cancel();
+
+    // Đặt timer mới để debounce nhiều lệnh gọi
+    _notifyDebounceTimer = Timer(Duration(milliseconds: 100), () {
+      if (WidgetsBinding.instance != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            notifyListeners();
+          } catch (e) {
+            print('UserProvider: Error during notifyListeners: $e');
+          }
+        });
+      } else {
+        Future.microtask(() {
+          try {
+            notifyListeners();
+          } catch (e) {
+            print('UserProvider: Error during notifyListeners: $e');
+          }
+        });
+      }
+    });
   }
 
   void _setLoading(bool loading) {
@@ -65,15 +82,14 @@ class UserProvider extends ChangeNotifier {
 
   Future<void> initialize() async {
     print('UserProvider: Bắt đầu khởi tạo');
+    if (_initialized) {
+      print('UserProvider: Đã khởi tạo trước đó');
+      return;
+    }
+
     _setLoading(true);
 
     try {
-      if (_initialized) {
-        print('UserProvider: Đã khởi tạo trước đó');
-        _setLoading(false);
-        return;
-      }
-
       _setupAuthListener();
       print('UserProvider: Đã thiết lập Auth Listener');
 
@@ -96,6 +112,7 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       print('UserProvider: Lỗi khi khởi tạo: $e');
       _setError('Không thể khởi tạo: ${e.toString()}');
+      _initialized = false;
     } finally {
       _setLoading(false);
     }
@@ -107,45 +124,49 @@ class UserProvider extends ChangeNotifier {
       return;
     }
 
-    print(
-      'UserProvider: Bắt đầu tải dữ liệu cho người dùng: ${_auth.currentUser!.uid}',
-    );
+    String userId = _auth.currentUser!.uid;
+    print('UserProvider: Bắt đầu tải dữ liệu cho người dùng: $userId');
 
     try {
       _setLoading(true);
       _setError(null);
 
-      final currentUserDoc =
-          await _firestore
-              .collection('users')
-              .doc(_auth.currentUser!.uid)
-              .get();
+      // Thiết lập subscription cho tài liệu người dùng để cập nhật real-time
+      _setupUserDocListener(userId);
+
+      // Truy vấn dữ liệu ngay lập tức
+      final currentUserDoc = await _usersCollection.doc(userId).get();
 
       if (currentUserDoc.exists) {
         _currentUser = UserModel.fromMap(
-          _auth.currentUser!.uid,
-          currentUserDoc.data() ?? {},
+          userId,
+          currentUserDoc.data() as Map<String, dynamic>,
         );
         print('UserProvider: Đã lấy được thông tin người dùng từ Firestore');
       } else {
         print('UserProvider: Không tìm thấy thông tin người dùng, tạo mới');
         await _createNewUserRecord();
 
-        final newUserDoc =
-            await _firestore
-                .collection('users')
-                .doc(_auth.currentUser!.uid)
-                .get();
+        final newUserDoc = await _usersCollection.doc(userId).get();
         if (newUserDoc.exists) {
           _currentUser = UserModel.fromMap(
-            _auth.currentUser!.uid,
-            newUserDoc.data() ?? {},
+            userId,
+            newUserDoc.data() as Map<String, dynamic>,
           );
         }
       }
 
-      print('UserProvider: Tải danh sách người dùng');
-      await _loadAllUsers();
+      // Chỉ tải danh sách người dùng nếu cần
+      if (_allUsers.isEmpty ||
+          _lastUserListFetch == null ||
+          DateTime.now().difference(_lastUserListFetch!) >
+              _userListCacheDuration) {
+        print('UserProvider: Tải danh sách người dùng');
+        await _loadAllUsers();
+      } else {
+        print('UserProvider: Sử dụng cache danh sách người dùng');
+      }
+
       _safeNotifyListeners();
     } catch (e) {
       _setError('Không thể lấy thông tin người dùng: ${e.toString()}');
@@ -155,10 +176,42 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Thiết lập listener cho tài liệu người dùng để cập nhật real-time
+  void _setupUserDocListener(String userId) {
+    // Hủy listener cũ trước khi tạo mới
+    _userDocSubscription?.cancel();
+
+    _userDocSubscription = _usersCollection
+        .doc(userId)
+        .snapshots()
+        .listen(
+          (docSnapshot) {
+            if (docSnapshot.exists) {
+              _currentUser = UserModel.fromMap(
+                userId,
+                docSnapshot.data() as Map<String, dynamic>,
+              );
+              print('UserProvider: Cập nhật dữ liệu người dùng real-time');
+              _safeNotifyListeners();
+            }
+          },
+          onError: (error) {
+            print(
+              'UserProvider: Lỗi khi lắng nghe thay đổi dữ liệu người dùng: $error',
+            );
+          },
+        );
+  }
+
   Future<void> _loadAllUsers() async {
     try {
       print('UserProvider: Bắt đầu tải danh sách tất cả người dùng');
-      final QuerySnapshot snapshot = await _firestore.collection('users').get();
+
+      // Sử dụng phân trang và giới hạn để cải thiện hiệu suất
+      final QuerySnapshot snapshot =
+          await _usersCollection
+              .limit(100) // Giới hạn số lượng người dùng được tải một lúc
+              .get();
 
       print(
         'UserProvider: Số lượng người dùng từ Firestore: ${snapshot.docs.length}',
@@ -171,6 +224,9 @@ class UserProvider extends ChangeNotifier {
               doc.data() as Map<String, dynamic>,
             );
           }).toList();
+
+      // Cập nhật thời gian lấy dữ liệu gần nhất
+      _lastUserListFetch = DateTime.now();
 
       print('UserProvider: Đã tải thành công ${_allUsers.length} người dùng');
     } catch (e) {
@@ -187,6 +243,7 @@ class UserProvider extends ChangeNotifier {
 
       if (user == null) {
         print('UserProvider: Người dùng đã đăng xuất');
+        _userDocSubscription?.cancel();
         clearUserData();
       } else {
         print('UserProvider: Người dùng đã đăng nhập: ${user.uid}');
@@ -205,11 +262,10 @@ class UserProvider extends ChangeNotifier {
         return;
       }
 
-      print(
-        'UserProvider: Đang tạo bản ghi mới cho người dùng: ${firebaseUser.uid}',
-      );
+      String userId = firebaseUser.uid;
+      print('UserProvider: Đang tạo bản ghi mới cho người dùng: $userId');
 
-      final docRef = _firestore.collection('users').doc(firebaseUser.uid);
+      final docRef = _usersCollection.doc(userId);
       final docSnapshot = await docRef.get();
 
       if (!docSnapshot.exists) {
@@ -228,7 +284,12 @@ class UserProvider extends ChangeNotifier {
         await docRef.set(newUser);
         print('UserProvider: Đã tạo bản ghi người dùng mới thành công');
       } else {
-        await docRef.update({'lastLogin': FieldValue.serverTimestamp()});
+        // Sử dụng transaction để đảm bảo atomic update
+        await _firestore.runTransaction((transaction) async {
+          transaction.update(docRef, {
+            'lastLogin': FieldValue.serverTimestamp(),
+          });
+        });
         print('UserProvider: Đã cập nhật thời gian đăng nhập');
       }
     } catch (e) {
@@ -236,14 +297,24 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // Phương thức getAllUsersWithoutCheck để lấy danh sách tất cả người dùng
-  Future<List<UserModel>> getAllUsersWithoutCheck() async {
-    print(
-      'UserProvider: Bắt đầu lấy tất cả người dùng mà không kiểm tra quyền',
-    );
+  // Tối ưu phương thức lấy danh sách người dùng với pagination
+  Future<List<UserModel>> getAllUsersWithoutCheck({
+    int limit = 100,
+    UserModel? lastUser,
+  }) async {
+    print('UserProvider: Bắt đầu lấy tất cả người dùng với phân trang');
 
     try {
-      final snapshot = await _firestore.collection('users').get();
+      Query query = _usersCollection.limit(limit);
+
+      // Áp dụng phân trang nếu có user cuối cùng
+      if (lastUser != null) {
+        query = query.startAfterDocument(
+          await _usersCollection.doc(lastUser.id).get(),
+        );
+      }
+
+      final snapshot = await query.get();
       final users =
           snapshot.docs.map((doc) {
             return UserModel.fromMap(
@@ -252,7 +323,7 @@ class UserProvider extends ChangeNotifier {
             );
           }).toList();
 
-      print('UserProvider: Đã lấy ${users.length} người dùng');
+      print('UserProvider: Đã lấy ${users.length} người dùng (trang mới)');
       return users;
     } catch (e) {
       print('UserProvider: Lỗi trong getAllUsersWithoutCheck: $e');
@@ -276,17 +347,28 @@ class UserProvider extends ChangeNotifier {
       String userId = _auth.currentUser!.uid;
       print('UserProvider: Cập nhật hồ sơ cho người dùng $userId');
 
-      String? avatarUrl;
+      // Tải lên ảnh đại diện một cách bất đồng bộ nếu có
+      Future<String?>? avatarUploadFuture;
       if (avatarFile != null) {
-        avatarUrl = await _userRepository.uploadUserAvatar(userId, avatarFile);
-        print('UserProvider: Đã tải lên ảnh đại diện: $avatarUrl');
+        avatarUploadFuture = _userRepository.uploadUserAvatar(
+          userId,
+          avatarFile,
+        );
       }
 
       final Map<String, dynamic> updateData = {};
       if (fullName != null) updateData['fullName'] = fullName;
       if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
       if (address != null) updateData['address'] = address;
-      if (avatarUrl != null) updateData['avatarUrl'] = avatarUrl;
+
+      // Chờ tải lên ảnh hoàn thành nếu có
+      if (avatarUploadFuture != null) {
+        final avatarUrl = await avatarUploadFuture;
+        if (avatarUrl != null) {
+          updateData['avatarUrl'] = avatarUrl;
+          print('UserProvider: Đã tải lên ảnh đại diện: $avatarUrl');
+        }
+      }
 
       bool canCompleteProfile = true;
       if (_currentUser != null) {
@@ -307,9 +389,14 @@ class UserProvider extends ChangeNotifier {
         print('UserProvider: Hồ sơ đủ thông tin để đánh dấu hoàn thành');
       }
 
-      await _firestore.collection('users').doc(userId).update(updateData);
+      // Sử dụng transaction để update
+      await _firestore.runTransaction((transaction) async {
+        transaction.update(_usersCollection.doc(userId), updateData);
+      });
+
       print('UserProvider: Đã cập nhật hồ sơ người dùng thành công');
-      await refreshUserData();
+
+      // Làm mới dữ liệu người dùng không cần thiết vì đã có listener
       return true;
     } catch (e) {
       _setError('Lỗi khi cập nhật hồ sơ: ${e.toString()}');
@@ -320,46 +407,34 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  // Phương thức làm mới dữ liệu người dùng
-  Future<void> refreshUserData() async {
+  // Phương thức làm mới dữ liệu người dùng - với tối ưu cache
+  Future<void> refreshUserData({bool forceRefresh = false}) async {
     print('UserProvider: Bắt đầu làm mới dữ liệu người dùng');
-    _setLoading(true); // Đặt trạng thái đang tải
-    _setError(null); // Reset lỗi
 
-    try {
-      // Kiểm tra xem người dùng đã đăng nhập chưa
-      if (_auth.currentUser == null) {
-        print('UserProvider: Không thể làm mới dữ liệu - chưa đăng nhập');
-        return;
+    // Nếu không có người dùng đăng nhập, không cần làm gì
+    if (_auth.currentUser == null) {
+      print('UserProvider: Không thể làm mới dữ liệu - chưa đăng nhập');
+      return;
+    }
+
+    // Nếu buộc làm mới hoặc cần cập nhật cache danh sách người dùng
+    if (forceRefresh ||
+        _lastUserListFetch == null ||
+        DateTime.now().difference(_lastUserListFetch!) >
+            _userListCacheDuration) {
+      _setLoading(true);
+
+      try {
+        await _loadAllUsers();
+        print('UserProvider: Đã làm mới danh sách người dùng');
+      } catch (e) {
+        _setError('Không thể làm mới dữ liệu: ${e.toString()}');
+        print('UserProvider: Lỗi trong refreshUserData(): $e');
+      } finally {
+        _setLoading(false);
       }
-
-      // Lấy lại thông tin người dùng từ Firestore
-      final userDoc =
-          await _firestore
-              .collection('users')
-              .doc(_auth.currentUser!.uid)
-              .get();
-
-      if (userDoc.exists) {
-        _currentUser = UserModel.fromMap(
-          _auth.currentUser!.uid,
-          userDoc.data() ?? {},
-        );
-        print(
-          'UserProvider: Đã làm mới dữ liệu người dùng. Vai trò: ${_currentUser?.role}',
-        );
-      } else {
-        print('UserProvider: Không tìm thấy dữ liệu người dùng');
-      }
-
-      // Làm mới danh sách người dùng
-      print('UserProvider: Làm mới danh sách người dùng');
-      await _loadAllUsers();
-    } catch (e) {
-      _setError('Không thể làm mới dữ liệu: ${e.toString()}');
-      print('UserProvider: Lỗi trong refreshUserData(): $e');
-    } finally {
-      _setLoading(false); // Kết thúc trạng thái tải
+    } else {
+      print('UserProvider: Bỏ qua làm mới danh sách người dùng (dùng cache)');
     }
   }
 
@@ -367,16 +442,16 @@ class UserProvider extends ChangeNotifier {
     print('UserProvider: Xóa dữ liệu người dùng');
     _currentUser = null;
     _allUsers = [];
+    _lastUserListFetch = null;
     _safeNotifyListeners();
   }
 
-  // Trong UserProvider
   Future<bool> completeUserProfile({
     required String fullName,
     required String phoneNumber,
     required String address,
-    File? avatarFile, // Chỉ cần nhận hình ảnh nếu người dùng chọn ảnh mới
-    bool isDefaultAddress = false, // Đặt mặc định cho địa chỉ
+    File? avatarFile,
+    bool isDefaultAddress = false,
   }) async {
     if (_auth.currentUser == null) return false;
 
@@ -387,27 +462,40 @@ class UserProvider extends ChangeNotifier {
       String userId = _auth.currentUser!.uid;
       print('UserProvider: Hoàn thành hồ sơ cho người dùng $userId');
 
-      // Nếu có ảnh đại diện, upload và lấy URL
-      String? avatarUrl;
+      // Tải lên ảnh đại diện một cách bất đồng bộ nếu có
+      Future<String?>? avatarUploadFuture;
       if (avatarFile != null) {
-        avatarUrl = await _userRepository.uploadUserAvatar(userId, avatarFile);
-        print('UserProvider: Đã tải lên ảnh đại diện: $avatarUrl');
+        avatarUploadFuture = _userRepository.uploadUserAvatar(
+          userId,
+          avatarFile,
+        );
       }
 
       // Tạo map dữ liệu cần cập nhật
-      final Map<String, dynamic> updateData = {};
-      updateData['fullName'] = fullName;
-      updateData['phoneNumber'] = phoneNumber;
-      updateData['address'] = address;
-      if (avatarUrl != null) updateData['avatarUrl'] = avatarUrl;
-      updateData['isProfileCompleted'] = true;
+      final Map<String, dynamic> updateData = {
+        'fullName': fullName,
+        'phoneNumber': phoneNumber,
+        'address': address,
+        'isProfileCompleted': true,
+      };
 
-      // Cập nhật dữ liệu vào Firestore
-      await _firestore.collection('users').doc(userId).update(updateData);
+      // Chờ tải lên ảnh hoàn thành nếu có
+      if (avatarUploadFuture != null) {
+        final avatarUrl = await avatarUploadFuture;
+        if (avatarUrl != null) {
+          updateData['avatarUrl'] = avatarUrl;
+          print('UserProvider: Đã tải lên ảnh đại diện: $avatarUrl');
+        }
+      }
+
+      // Sử dụng batch để cập nhật nhiều trường cùng một lúc
+      final batch = _firestore.batch();
+      batch.update(_usersCollection.doc(userId), updateData);
+      await batch.commit();
+
       print('UserProvider: Đã cập nhật hồ sơ người dùng thành công');
 
-      // Làm mới dữ liệu người dùng sau khi cập nhật
-      await refreshUserData();
+      // Làm mới dữ liệu người dùng không cần thiết vì đã có listener
       return true;
     } catch (e) {
       _setError('Lỗi khi hoàn thành hồ sơ: ${e.toString()}');
@@ -441,8 +529,11 @@ class UserProvider extends ChangeNotifier {
           // Tiếp tục mặc dù có lỗi, vì dữ liệu người dùng đã bị xóa
         }
 
-        // Làm mới danh sách người dùng
-        await _loadAllUsers();
+        // Chỉ làm mới danh sách người dùng nếu xóa thành công
+        // Xóa người dùng đã xóa khỏi bộ nhớ cache
+        _allUsers.removeWhere((user) => user.id == userId);
+        _lastUserListFetch = DateTime.now(); // Cập nhật thời gian cập nhật
+
         _safeNotifyListeners();
       } else {
         _setError('Không thể xóa người dùng.');
@@ -458,6 +549,8 @@ class UserProvider extends ChangeNotifier {
   void dispose() {
     print('UserProvider: Dispose');
     _authSubscription?.cancel();
+    _userDocSubscription?.cancel();
+    _notifyDebounceTimer?.cancel();
     super.dispose();
   }
 }

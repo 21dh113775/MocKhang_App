@@ -79,7 +79,6 @@ class DrawerWidget extends StatelessWidget {
                       if (onCategoryTap != null) {
                         onCategoryTap!();
                       } else {
-                        // Mặc định: Điều hướng đến trang danh mục
                         Navigator.pushNamed(context, '/categories');
                       }
                     },
@@ -92,7 +91,6 @@ class DrawerWidget extends StatelessWidget {
                       if (onCartTap != null) {
                         onCartTap!();
                       } else {
-                        // Mặc định: Điều hướng đến trang giỏ hàng
                         Navigator.pushNamed(context, '/cart');
                       }
                     },
@@ -169,7 +167,7 @@ class DrawerWidget extends StatelessWidget {
                   else
                     _buildMenuItem(
                       icon: Icons.login_rounded,
-                      title: 'Đăng Xuất',
+                      title: 'Đăng xuất',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.pushNamed(context, '/login');
@@ -415,7 +413,7 @@ class DrawerWidget extends StatelessWidget {
   }
 }
 
-// Extension cho Badge widget nếu không có sẵn trong dependencies
+// Badge widget (nếu chưa có trong dependencies)
 class Badge extends StatelessWidget {
   final Widget child;
   final Widget label;

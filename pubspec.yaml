@@ -75,6 +75,8 @@ dependencies:
   flutter_animate: ^4.5.2
   fl_chart: ^0.70.2
   syncfusion_flutter_charts: ^29.1.33
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
      
  
 flutter_icons:
@@ -112,6 +114,7 @@ flutter:
      - assets/banner1.png
      - assets/banner2.png
      - assets/default_image.png
+     - assets/facebook_logo.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -20,7 +20,7 @@ import 'package:mockhang_app/admin/providers/user_provider.dart';
 import 'package:mockhang_app/auth/auth_service.dart';
 import 'package:mockhang_app/auth/login_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
-import 'package:mockhang_app/user/pages/account_page_user.dart';
+import 'package:mockhang_app/user/pages/AccountUser/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
 import 'package:mockhang_app/user/pages/checkout/checkout_page.dart';
 import 'package:mockhang_app/user/pages/checkout/order/order_history_page.dart';

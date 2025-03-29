@@ -35,7 +35,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     SupportPage(),
     DiscountPageAdmin(),
     PaymentsPageAdmin(),
-    DeliveryPage(),
+    DeliveryManagementPage(),
     NotificationsPageAdmin(),
     CMSPage(),
   ];

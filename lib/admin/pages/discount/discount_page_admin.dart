@@ -21,6 +21,16 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
   bool _isSearching = false;
   String _searchQuery = '';
 
+  // Định nghĩa color palette
+  final Color primaryColor = Color(0xFF2C3E50);
+  final Color accentColor = Color(0xFF3498DB);
+  final Color backgroundColor = Color(0xFFF5F7FA);
+  final Color cardColor = Colors.white;
+
+  // Cache filtered discounts để tối ưu hiệu năng
+  List<DiscountModel> _filteredDiscounts = [];
+  bool _hasInitializedDiscounts = false;
+
   @override
   void initState() {
     super.initState();
@@ -31,7 +41,8 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
 
     // Tải dữ liệu khuyến mãi khi trang được khởi tạo
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<DiscountProvider>(context, listen: false).loadDiscounts();
+      final provider = Provider.of<DiscountProvider>(context, listen: false);
+      provider.loadDiscounts();
     });
   }
 
@@ -51,48 +62,59 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
         _searchController.clear();
         _searchQuery = '';
         _animationController.reverse();
+        _updateFilteredDiscounts(
+          Provider.of<DiscountProvider>(context, listen: false).discounts,
+        );
       }
     });
   }
 
-  List<DiscountModel> _getFilteredDiscounts(List<DiscountModel> discounts) {
+  void _updateFilteredDiscounts(List<DiscountModel> discounts) {
     if (_searchQuery.isEmpty) {
-      return discounts;
+      _filteredDiscounts = discounts;
+      return;
     }
 
     final lowercaseQuery = _searchQuery.toLowerCase();
-    return discounts.where((discount) {
-      return discount.name.toLowerCase().contains(lowercaseQuery) ||
-          (discount.description != null &&
-              discount.description!.toLowerCase().contains(lowercaseQuery)) ||
-          (discount.barcode != null &&
-              discount.barcode!.toLowerCase().contains(lowercaseQuery));
-    }).toList();
+    _filteredDiscounts =
+        discounts.where((discount) {
+          return discount.name.toLowerCase().contains(lowercaseQuery) ||
+              (discount.description != null &&
+                  discount.description!.toLowerCase().contains(
+                    lowercaseQuery,
+                  )) ||
+              (discount.barcode != null &&
+                  discount.barcode!.toLowerCase().contains(lowercaseQuery));
+        }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF5F7FA),
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => DiscountAddPageAdmin()),
-          );
-
-          if (result == true) {
-            _showSnackBar(
-              "Đã thêm khuyến mãi mới",
-              AnimatedSnackBarType.success,
-            );
-          }
-        },
-        child: Icon(Icons.add),
-        tooltip: 'Thêm khuyến mãi',
-        backgroundColor: Theme.of(context).primaryColor,
+    return Theme(
+      data: Theme.of(context).copyWith(
+        primaryColor: primaryColor,
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: primaryColor,
+          secondary: accentColor,
+        ),
+        scaffoldBackgroundColor: backgroundColor,
+        appBarTheme: AppBarTheme(backgroundColor: primaryColor, elevation: 0),
+        cardTheme: CardTheme(
+          color: cardColor,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: accentColor,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      child: Scaffold(
+        appBar: _buildAppBar(),
+        body: _buildBody(),
+        floatingActionButton: _buildFloatingActionButton(),
       ),
     );
   }
@@ -100,32 +122,9 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
   AppBar _buildAppBar() {
     return AppBar(
       elevation: 0,
-      backgroundColor: Theme.of(context).primaryColor,
       title:
           _isSearching
-              ? TextField(
-                controller: _searchController,
-                style: TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: "Tìm kiếm khuyến mãi...",
-                  hintStyle: TextStyle(color: Colors.white70),
-                  border: InputBorder.none,
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.clear, color: Colors.white),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _searchQuery = '';
-                      });
-                    },
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-              )
+              ? _buildSearchField()
               : Text(
                 "Quản lý Khuyến Mãi",
                 style: TextStyle(
@@ -140,21 +139,85 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
             color: Colors.white,
           ),
           onPressed: _toggleSearch,
+          tooltip: _isSearching ? 'Đóng tìm kiếm' : 'Tìm kiếm',
         ),
         IconButton(
           icon: Icon(Icons.refresh, color: Colors.white),
-          onPressed: () {
-            Provider.of<DiscountProvider>(
-              context,
-              listen: false,
-            ).loadDiscounts();
-            _showSnackBar(
-              "Đã làm mới danh sách khuyến mãi",
-              AnimatedSnackBarType.info,
-            );
-          },
+          onPressed: _refreshDiscounts,
+          tooltip: 'Làm mới danh sách',
         ),
       ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      width: double.infinity,
+      height: 40,
+      decoration: BoxDecoration(
+        color: primaryColor.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: Colors.white),
+        cursorColor: Colors.white70,
+        decoration: InputDecoration(
+          hintText: "Tìm kiếm khuyến mãi...",
+          hintStyle: TextStyle(color: Colors.white70),
+          prefixIcon: Icon(Icons.search, color: Colors.white70),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          suffixIcon: IconButton(
+            icon: Icon(Icons.clear, color: Colors.white70, size: 20),
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _searchQuery = '';
+                _updateFilteredDiscounts(
+                  Provider.of<DiscountProvider>(
+                    context,
+                    listen: false,
+                  ).discounts,
+                );
+              });
+            },
+          ),
+        ),
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value;
+            _updateFilteredDiscounts(
+              Provider.of<DiscountProvider>(context, listen: false).discounts,
+            );
+          });
+        },
+      ),
+    );
+  }
+
+  void _refreshDiscounts() {
+    Provider.of<DiscountProvider>(context, listen: false).loadDiscounts();
+
+    _showSnackBar("Đã làm mới danh sách khuyến mãi", AnimatedSnackBarType.info);
+  }
+
+  Widget _buildFloatingActionButton() {
+    return FloatingActionButton.extended(
+      onPressed: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => DiscountAddPageAdmin()),
+        );
+
+        if (result == true) {
+          _showSnackBar("Đã thêm khuyến mãi mới", AnimatedSnackBarType.success);
+        }
+      },
+      icon: Icon(Icons.add),
+      label: Text("Thêm mới"),
+      tooltip: 'Thêm khuyến mãi',
     );
   }
 
@@ -162,33 +225,69 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
     return Consumer<DiscountProvider>(
       builder: (context, discountProvider, child) {
         if (discountProvider.isLoading) {
-          return Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+            ),
+          );
         }
 
-        final filteredDiscounts = _getFilteredDiscounts(
-          discountProvider.discounts,
-        );
+        // Chỉ cập nhật filteredDiscounts khi discounts thay đổi hoặc khi lần đầu load
+        if (!_hasInitializedDiscounts || _filteredDiscounts.isEmpty) {
+          _updateFilteredDiscounts(discountProvider.discounts);
+          _hasInitializedDiscounts = true;
+        }
 
-        if (filteredDiscounts.isEmpty) {
+        if (_filteredDiscounts.isEmpty) {
           return _buildEmptyView();
         }
 
-        return ListView.builder(
-          itemCount: filteredDiscounts.length,
-          itemBuilder: (context, index) {
-            final discount = filteredDiscounts[index];
-            return DiscountTile(
+        return _buildDiscountList();
+      },
+    );
+  }
+
+  Widget _buildDiscountList() {
+    return RefreshIndicator(
+      color: primaryColor,
+      onRefresh: () async {
+        await Provider.of<DiscountProvider>(
+          context,
+          listen: false,
+        ).loadDiscounts();
+      },
+      child: ListView.builder(
+        physics: AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(vertical: 12),
+        itemCount: _filteredDiscounts.length,
+        itemBuilder: (context, index) {
+          final discount = _filteredDiscounts[index];
+          return AnimatedOpacity(
+            duration: Duration(milliseconds: 500),
+            opacity: 1.0,
+            child: DiscountTile(
               discount: discount,
+              primaryColor: primaryColor,
+              accentColor: accentColor,
               onDeleted: () {
                 _showSnackBar(
                   "Đã xóa khuyến mãi",
                   AnimatedSnackBarType.success,
                 );
+                // Cập nhật lại danh sách khi xóa
+                setState(() {
+                  _updateFilteredDiscounts(
+                    Provider.of<DiscountProvider>(
+                      context,
+                      listen: false,
+                    ).discounts,
+                  );
+                });
               },
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -197,26 +296,85 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 60, color: Colors.grey),
-          SizedBox(height: 16),
+          Icon(
+            _searchQuery.isNotEmpty
+                ? Icons.search_off
+                : Icons.discount_outlined,
+            size: 80,
+            color: Colors.grey.withOpacity(0.5),
+          ),
+          SizedBox(height: 24),
           Text(
             _searchQuery.isNotEmpty
                 ? "Không tìm thấy khuyến mãi phù hợp"
                 : "Chưa có khuyến mãi nào",
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: primaryColor,
+            ),
           ),
-          SizedBox(height: 24),
+          SizedBox(height: 12),
+          Text(
+            _searchQuery.isNotEmpty
+                ? "Thử tìm với từ khóa khác"
+                : "Hãy thêm khuyến mãi đầu tiên",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          SizedBox(height: 32),
           if (_searchQuery.isNotEmpty)
             ElevatedButton.icon(
               icon: Icon(Icons.clear),
               label: Text("Xóa tìm kiếm"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               onPressed: () {
                 _searchController.clear();
                 setState(() {
                   _searchQuery = '';
                   _isSearching = false;
                   _animationController.reverse();
+                  _updateFilteredDiscounts(
+                    Provider.of<DiscountProvider>(
+                      context,
+                      listen: false,
+                    ).discounts,
+                  );
                 });
+              },
+            )
+          else
+            ElevatedButton.icon(
+              icon: Icon(Icons.add),
+              label: Text("Thêm khuyến mãi mới"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DiscountAddPageAdmin(),
+                  ),
+                );
+
+                if (result == true) {
+                  _showSnackBar(
+                    "Đã thêm khuyến mãi mới",
+                    AnimatedSnackBarType.success,
+                  );
+                }
               },
             ),
         ],
@@ -229,6 +387,7 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
       message,
       type: type,
       duration: Duration(seconds: 3),
+      mobileSnackBarPosition: MobileSnackBarPosition.bottom,
     ).show(context);
   }
 }
@@ -236,168 +395,254 @@ class _DiscountPageAdminState extends State<DiscountPageAdmin>
 class DiscountTile extends StatelessWidget {
   final DiscountModel discount;
   final VoidCallback? onDeleted;
+  final Color primaryColor;
+  final Color accentColor;
 
-  DiscountTile({required this.discount, this.onDeleted});
+  const DiscountTile({
+    Key? key,
+    required this.discount,
+    required this.primaryColor,
+    required this.accentColor,
+    this.onDeleted,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = _getStatusColor();
+    final statusText = _getStatusText();
+
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: BorderSide(color: _getStatusColor(), width: 1.5),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: statusColor.withOpacity(0.5), width: 1.5),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Tiêu đề và menu tùy chọn
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    discount.name,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                _buildPopupMenu(context),
-              ],
+            // Header với status badge
+            _buildHeader(context, statusColor, statusText),
+
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: Colors.grey.withOpacity(0.1),
             ),
 
-            SizedBox(height: 12),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Thông tin chi tiết khuyến mãi
+                  _buildDetailsSection(context),
 
-            // Thông tin chi tiết khuyến mãi
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDetailChip(
-                  context,
-                  Icons.discount_outlined,
-                  'Loại',
-                  _getDiscountTypeText(discount.type),
-                ),
-                _buildDetailChip(
-                  context,
-                  Icons.monetization_on_outlined,
-                  'Giá trị',
-                  _formatDiscountValue(),
-                ),
-              ],
-            ),
+                  SizedBox(height: 16),
 
-            SizedBox(height: 12),
+                  // Thời gian hiệu lực
+                  _buildDateTimeSection(),
 
-            // Thời gian hiệu lực
-            Row(
-              children: [
-                Icon(Icons.calendar_month, size: 16, color: Colors.grey),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _formatDiscountPeriod(),
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
+                  // Mô tả (nếu có)
+                  if (discount.description != null &&
+                      discount.description!.isNotEmpty)
+                    _buildDescriptionSection(),
 
-            // Mô tả (nếu có)
-            if (discount.description != null &&
-                discount.description!.isNotEmpty) ...[
-              SizedBox(height: 12),
-              Text(
-                'Mô tả: ${discount.description}',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                  // Mã vạch (nếu có)
+                  if (discount.barcode != null && discount.barcode!.isNotEmpty)
+                    _buildBarcodeSection(),
+                ],
               ),
-            ],
+            ),
 
-            // Mã vạch (nếu có)
-            if (discount.barcode != null && discount.barcode!.isNotEmpty) ...[
-              SizedBox(height: 12),
-              Center(
-                child: BarcodeWidget(
-                  barcode: Barcode.code128(),
-                  data: discount.barcode!,
-                  width: 250,
-                  height: 80,
-                  drawText: true,
-                ),
-              ),
-            ],
+            // Footer với actions
+            _buildFooter(context),
           ],
         ),
       ),
     );
   }
 
-  // Định dạng giá trị khuyến mãi
-  String _formatDiscountValue() {
-    final value = discount.value;
-    return discount.type == 'Giảm theo phần trăm'
-        ? '$value%'
-        : '${NumberFormat('#,##0').format(value)} đ';
+  Widget _buildHeader(
+    BuildContext context,
+    Color statusColor,
+    String statusText,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: statusColor, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_getStatusIcon(), size: 16, color: statusColor),
+                SizedBox(width: 4),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              discount.name,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          _buildPopupMenu(context),
+        ],
+      ),
+    );
   }
 
-  // Định dạng thời gian hiệu lực khuyến mãi
-  String _formatDiscountPeriod() {
-    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
-    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
-
-    return 'Từ ${DateFormat('dd/MM/yyyy HH:mm').format(startDate)} '
-        'đến ${DateFormat('dd/MM/yyyy HH:mm').format(endDate)}';
+  Widget _buildDetailsSection(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDetailCard(
+            context,
+            Icons.discount_outlined,
+            'Loại khuyến mãi',
+            _getDiscountTypeText(discount.type),
+            primaryColor.withOpacity(0.08),
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: _buildDetailCard(
+            context,
+            Icons.monetization_on_outlined,
+            'Giá trị',
+            _formatDiscountValue(),
+            primaryColor.withOpacity(0.08),
+          ),
+        ),
+      ],
+    );
   }
 
-  // Lấy màu trạng thái của khuyến mãi
-  Color _getStatusColor() {
-    final now = DateTime.now();
-    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
-    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
-
-    if (now.isBefore(startDate)) return Colors.blue.shade100;
-    if (now.isAfter(endDate)) return Colors.red.shade100;
-    return Colors.green.shade100;
-  }
-
-  // Xây dựng chip chi tiết
-  Widget _buildDetailChip(
+  Widget _buildDetailCard(
     BuildContext context,
     IconData icon,
     String label,
     String value,
+    Color bgColor,
   ) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Theme.of(context).primaryColor),
-          SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
+              Icon(icon, size: 16, color: primaryColor),
+              SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+            ],
+          ),
+          SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSection() {
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_month, size: 16, color: primaryColor),
+              SizedBox(width: 8),
               Text(
-                value,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                'Thời gian hiệu lực',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: primaryColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDateItem(
+                  'Bắt đầu',
+                  startDate,
+                  Icons.play_arrow_rounded,
+                  Colors.green,
+                ),
+              ),
+              Container(
+                height: 40,
+                width: 1,
+                color: Colors.grey.withOpacity(0.3),
+                margin: EdgeInsets.symmetric(horizontal: 12),
+              ),
+              Expanded(
+                child: _buildDateItem(
+                  'Kết thúc',
+                  endDate,
+                  Icons.stop_rounded,
+                  Colors.red,
+                ),
               ),
             ],
           ),
@@ -406,28 +651,220 @@ class DiscountTile extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip(BuildContext context, String label, IconData icon) {
+  Widget _buildDateItem(
+    String label,
+    DateTime date,
+    IconData icon,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        SizedBox(height: 4),
+        Text(
+          DateFormat('dd/MM/yyyy').format(date),
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        Text(
+          DateFormat('HH:mm').format(date),
+          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionSection() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: EdgeInsets.only(top: 16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Theme.of(context).primaryColor),
-          SizedBox(width: 4),
-          Text(label),
+          Row(
+            children: [
+              Icon(Icons.description_outlined, size: 16, color: primaryColor),
+              SizedBox(width: 8),
+              Text(
+                'Mô tả',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: primaryColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Text(
+            discount.description!,
+            style: TextStyle(color: Colors.grey[800], fontSize: 14),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildBarcodeSection() {
+    return Container(
+      margin: EdgeInsets.only(top: 16),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.qr_code, size: 16, color: primaryColor),
+              SizedBox(width: 8),
+              Text(
+                'Mã khuyến mãi',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: primaryColor,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Center(
+            child: BarcodeWidget(
+              barcode: Barcode.code128(),
+              data: discount.barcode!,
+              width: 220,
+              height: 70,
+              drawText: true,
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton.icon(
+            icon: Icon(Icons.visibility_outlined, size: 18),
+            label: Text('Chi tiết'),
+            style: TextButton.styleFrom(foregroundColor: primaryColor),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => DiscountDetailsPageAdmin(discount: discount),
+                ),
+              );
+            },
+          ),
+          SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: Icon(Icons.edit_outlined, size: 18),
+            label: Text('Sửa'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: accentColor,
+              side: BorderSide(color: accentColor),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => DiscountEditPageAdmin(discount: discount),
+                ),
+              ).then((result) {
+                if (result == true) {
+                  AnimatedSnackBar.material(
+                    "Đã cập nhật khuyến mãi",
+                    type: AnimatedSnackBarType.success,
+                  ).show(context);
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Định dạng giá trị khuyến mãi
+  String _formatDiscountValue() {
+    final value = discount.value;
+    return discount.type == 'percentage'
+        ? '$value%'
+        : '${NumberFormat('#,##0').format(value)} đ';
+  }
+
+  // Lấy màu trạng thái của khuyến mãi
+  Color _getStatusColor() {
+    final now = DateTime.now();
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    if (now.isBefore(startDate)) return Colors.blue;
+    if (now.isAfter(endDate)) return Colors.red;
+    return Colors.green;
+  }
+
+  // Lấy icon trạng thái
+  IconData _getStatusIcon() {
+    final now = DateTime.now();
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    if (now.isBefore(startDate)) return Icons.schedule;
+    if (now.isAfter(endDate)) return Icons.event_busy;
+    return Icons.event_available;
+  }
+
+  // Lấy text trạng thái
+  String _getStatusText() {
+    final now = DateTime.now();
+    final startDate = DateTime.fromMillisecondsSinceEpoch(discount.startDate);
+    final endDate = DateTime.fromMillisecondsSinceEpoch(discount.endDate);
+
+    if (now.isBefore(startDate)) return "Sắp diễn ra";
+    if (now.isAfter(endDate)) return "Đã kết thúc";
+    return "Đang diễn ra";
+  }
+
   Widget _buildPopupMenu(BuildContext context) {
     return PopupMenuButton<String>(
-      icon: Icon(Icons.more_vert),
+      icon: Icon(Icons.more_vert, color: primaryColor),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      offset: Offset(0, 40),
+      elevation: 4,
       onSelected: (value) {
         switch (value) {
           case 'view':
@@ -457,6 +894,9 @@ class DiscountTile extends StatelessWidget {
           case 'delete':
             _showDeleteDialog(context);
             break;
+          case 'share':
+            // Thêm chức năng chia sẻ mã khuyến mãi
+            break;
         }
       },
       itemBuilder:
@@ -465,8 +905,8 @@ class DiscountTile extends StatelessWidget {
               value: 'view',
               child: Row(
                 children: [
-                  Icon(Icons.visibility, color: Colors.blue),
-                  SizedBox(width: 8),
+                  Icon(Icons.visibility, color: primaryColor),
+                  SizedBox(width: 12),
                   Text('Xem chi tiết'),
                 ],
               ),
@@ -475,19 +915,30 @@ class DiscountTile extends StatelessWidget {
               value: 'edit',
               child: Row(
                 children: [
-                  Icon(Icons.edit, color: Colors.orange),
-                  SizedBox(width: 8),
+                  Icon(Icons.edit, color: accentColor),
+                  SizedBox(width: 12),
                   Text('Chỉnh sửa'),
                 ],
               ),
             ),
             PopupMenuItem(
+              value: 'share',
+              child: Row(
+                children: [
+                  Icon(Icons.share, color: Colors.purple),
+                  SizedBox(width: 12),
+                  Text('Chia sẻ'),
+                ],
+              ),
+            ),
+            PopupMenuDivider(),
+            PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
                   Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Xóa'),
+                  SizedBox(width: 12),
+                  Text('Xóa', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
@@ -498,9 +949,9 @@ class DiscountTile extends StatelessWidget {
   String _getDiscountTypeText(String type) {
     switch (type) {
       case 'percentage':
-        return 'Phần trăm';
+        return 'Giảm theo phần trăm';
       case 'fixed_amount':
-        return 'Số tiền cố định';
+        return 'Giảm theo số tiền';
       default:
         return type;
     }
@@ -511,7 +962,6 @@ class DiscountTile extends StatelessWidget {
       context,
       listen: false,
     );
-
     showDialog(
       context: context,
       builder: (context) {

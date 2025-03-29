@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
-import 'package:mockhang_app/user/pages/account_page_user.dart';
+import 'package:mockhang_app/user/pages/AccountUser/account_page_user.dart';
 import 'package:mockhang_app/user/pages/cart/cart_page.dart';
 import 'package:mockhang_app/user/pages/consultation_page.dart';
 import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
@@ -111,13 +111,7 @@ class _HomePageState extends State<HomeScreen> {
             ),
             const BannerSection(),
             const SizedBox(height: 16),
-            CategorySection(
-              isLoading: _isCategoryLoading,
-              error: _categoryError,
-              categories: Provider.of<CategoryProvider>(context).categories,
-              onRefresh: _loadData,
-            ),
-            const SizedBox(height: 16),
+
             Consumer<ProductProvider>(
               builder: (context, productProvider, _) {
                 return ProductSection(

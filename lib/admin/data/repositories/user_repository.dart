@@ -112,24 +112,28 @@ class UserRepository {
   // Tải lên ảnh đại diện người dùng
   Future<String?> uploadUserAvatar(String userId, File avatarFile) async {
     try {
-      // Tạo đường dẫn lưu trữ
-      final storageRef = _storage.ref().child('user_avatars/$userId.jpg');
+      // Tạo reference đến vị trí lưu ảnh
+      final Reference storageRef = _storage
+          .ref()
+          .child('user_avatars')
+          .child('$userId.jpg');
 
-      // Tải lên tệp
-      await storageRef.putFile(avatarFile);
+      // Upload file
+      final UploadTask uploadTask = storageRef.putFile(
+        avatarFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
 
-      // Lấy URL tải xuống
-      final downloadUrl = await storageRef.getDownloadURL();
+      // Chờ upload hoàn tất
+      final TaskSnapshot snapshot = await uploadTask;
 
-      // Cập nhật URL trong hồ sơ người dùng
-      await _usersCollection.doc(userId).update({
-        'avatarUrl': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Lấy URL download
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
 
+      print('UserRepository: Ảnh đại diện đã được tải lên: $downloadUrl');
       return downloadUrl;
     } catch (e) {
-      print('Lỗi khi tải lên ảnh đại diện: $e');
+      print('UserRepository: Lỗi khi tải lên ảnh đại diện: $e');
       return null;
     }
   }
