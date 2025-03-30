@@ -123,7 +123,6 @@ class _DiscountPageUserState extends State<DiscountPageUser>
 
   AppBar _buildAppBar() {
     return AppBar(
-      automaticallyImplyLeading: false,
       elevation: 0,
       backgroundColor: Theme.of(context).primaryColor,
       title:
