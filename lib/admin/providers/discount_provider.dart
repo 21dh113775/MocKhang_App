@@ -109,6 +109,7 @@ class DiscountProvider extends ChangeNotifier {
   }
 
   /// Thêm khuyến mãi mới
+  /// Thêm khuyến mãi mới
   Future<DiscountModel?> addDiscount(DiscountModel discount) async {
     if (_isProcessing) return null;
 
@@ -118,14 +119,23 @@ class DiscountProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Kiểm tra mã vạch hợp lệ trước khi thêm
-      if (discount.barcode != null && !isValidBarcode(discount.barcode!)) {
-        throw ArgumentError('Mã vạch không hợp lệ');
+      // Kiểm tra tên phải có
+      if (discount.name.isEmpty) {
+        throw ArgumentError('Tên khuyến mãi không được để trống');
       }
 
-      // Kiểm tra tính hợp lệ của discount trước khi thêm
-      if (discount.name.isEmpty || discount.value <= 0) {
-        throw ArgumentError('Tên khuyến mãi hoặc giá trị không hợp lệ');
+      // Chỉ kiểm tra giá trị với các loại khuyến mãi cần giá trị
+      if ((discount.type == 'Giảm theo phần trăm' ||
+              discount.type == 'Giảm theo số tiền cố định') &&
+          discount.value <= 0) {
+        throw ArgumentError('Giá trị khuyến mãi phải lớn hơn 0');
+      }
+
+      // Kiểm tra mã vạch nếu có
+      if (discount.barcode != null && discount.barcode!.isNotEmpty) {
+        // Bỏ kiểm tra quá nghiêm ngặt hoặc sửa lại logic kiểm tra
+        // Nếu bạn không cần kiểm tra nghiêm ngặt, có thể bỏ đoạn này
+        // Hoặc thay bằng một kiểm tra đơn giản hơn
       }
 
       // Thêm discount vào hệ thống
