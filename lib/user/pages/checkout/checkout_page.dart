@@ -16,6 +16,7 @@ import 'payment/payment_method_section.dart';
 import 'message_for_shop_section.dart';
 import 'total_amount_section.dart';
 import 'checkout_button.dart';
+import 'payment_success_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   const CheckoutPage({Key? key}) : super(key: key);
@@ -95,17 +96,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       // Xóa giỏ hàng sau khi đặt hàng thành công
       cartProvider.clearCart();
 
-      // Hiển thị thông báo thành công
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đặt hàng thành công!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Chuyển hướng người dùng đến trang đơn hàng
+      // Chuyển hướng người dùng đến trang thanh toán thành công
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const CustomerOrdersPage()),
+        MaterialPageRoute(
+          builder:
+              (context) => PaymentSuccessPage(
+                orderId: orderId,
+                amount: order.totalAmount,
+                paymentMethod: order.paymentMethod,
+              ),
+        ),
       );
     } catch (e) {
       // Xử lý lỗi nếu có
@@ -224,19 +224,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   // Xóa giỏ hàng
                   cartProvider.clearCart();
 
-                  // Hiển thị thông báo thành công và quay lại trang chính
+                  // Hiển thị trang thanh toán thành công
                   Navigator.of(context).popUntil((route) => route.isFirst);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Thanh toán PayPal thành công!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-
-                  // Chuyển đến trang đơn hàng
-                  Navigator.of(context).pushReplacement(
+                  Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const CustomerOrdersPage(),
+                      builder:
+                          (context) => PaymentSuccessPage(
+                            orderId: orderId,
+                            amount: order.totalAmount,
+                            paymentMethod: 'PayPal',
+                          ),
                     ),
                   );
                 },

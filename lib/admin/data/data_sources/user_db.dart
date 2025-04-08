@@ -114,6 +114,22 @@ class UserDatabase {
     }
   }
 
+  Future<String?> getUserAvatarUrl(String userId) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection(userCollection).doc(userId).get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return data['avatarUrl'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Lỗi khi lấy URL avatar: $e');
+      return null;
+    }
+  }
+
   // Kiểm tra trạng thái hồ sơ người dùng
   Future<bool> isProfileComplete(String userId) async {
     try {

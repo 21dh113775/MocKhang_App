@@ -211,7 +211,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/images/empty_order.png', height: 150),
+          Image.asset('assets/empty_order.png', height: 150),
           const SizedBox(height: 24),
           Text(
             'Bạn chưa có đơn hàng nào',
@@ -229,7 +229,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              Navigator.pushNamed(context, '/products');
+              Navigator.pushNamed(context, '/user_home');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
