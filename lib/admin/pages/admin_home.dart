@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:mockhang_app/admin/pages/account_page_admin.dart';
+import 'package:mockhang_app/admin/pages/discount/discount_page_admin.dart';
+import 'package:mockhang_app/admin/pages/notifications_page_admin.dart';
+import 'package:mockhang_app/admin/widget/admin_drawer.dart';
 import 'dashboard_page.dart';
-import 'account_page.dart';
 import 'category/category_page.dart';
 import 'product/product_page.dart';
 import 'warehouse/warehouse_page.dart';
-import 'order_page.dart';
 import 'settings_page.dart';
 import 'reports_page.dart';
 import 'support_page.dart';
-import 'discount/discount_page.dart';
 import 'payments_page.dart';
 import 'delivery_page.dart';
-import 'notifications_page.dart';
 import 'cms_page.dart';
-import '../widgets/admin_drawer.dart';
+import '../../admin/pages/order/order_page.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   @override
@@ -24,19 +24,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    DashboardPage(),
-    AccountPage(),
+    AdminDashboardPage(),
+    AccountPageAdmin(),
     CategoryPage(),
-    ProductPage(),
+    ProductPageAdmin(),
     WarehousePage(),
-    OrderPage(),
+    AdminOrdersPage(),
     SettingsPage(),
     ReportsPage(),
     SupportPage(),
-    DiscountPage(),
-    PaymentsPage(),
-    DeliveryPage(),
-    NotificationsPage(),
+    DiscountPageAdmin(),
+    PaymentsPageAdmin(),
+    DeliveryManagementPage(),
+    NotificationsPageAdmin(),
     CMSPage(),
   ];
 
