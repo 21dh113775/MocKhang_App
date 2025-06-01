@@ -1,82 +1,155 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category_model.dart';
 
 class CategoryDatabase {
   static final CategoryDatabase instance = CategoryDatabase._init();
-  static Database? _database;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _collectionName = 'categories';
 
   CategoryDatabase._init();
 
-  /// Lấy Database (tạo nếu chưa có)
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
-  }
-
-  /// Khởi tạo Database SQLite
-  Future<Database> _initDB() async {
-    final path = join(await getDatabasesPath(), 'categories.db');
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
-          )
-        ''');
-      },
-    );
-  }
+  /// Lấy collection categories từ Firestore
+  CollectionReference<Map<String, dynamic>> get _categoriesCollection =>
+      _firestore.collection(_collectionName);
 
   /// **Thêm danh mục**
-  Future<int> insertCategory(Category category) async {
-    final db = await database;
-    return await db.insert(
-      'categories',
-      category.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+  Future<String> insertCategory(Category category) async {
+    try {
+      DocumentReference docRef = await _categoriesCollection.add({
+        'name': category.name,
+        'icon': category.icon,
+        'imageUrl': category.imageUrl, // Save image URL
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Không thể thêm danh mục: $e');
+    }
+  }
+
+  Future<void> updateCategory(Category category) async {
+    try {
+      if (category.id == null || category.id!.isEmpty) {
+        throw Exception('ID danh mục không hợp lệ');
+      }
+
+      await _categoriesCollection.doc(category.id).update({
+        'name': category.name,
+        'icon': category.icon,
+        'imageUrl': category.imageUrl, // Update image URL
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Không thể cập nhật danh mục: $e');
+    }
   }
 
   /// **Lấy tất cả danh mục**
   Future<List<Category>> fetchCategories() async {
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('categories');
-    return maps.map((map) => Category.fromMap(map)).toList();
-  }
-
-  /// **Cập nhật danh mục**
-  Future<int> updateCategory(Category category) async {
-    final db = await database;
-    return await db.update(
-      'categories',
-      category.toMap(),
-      where: 'id = ?',
-      whereArgs: [category.id],
-    );
+    try {
+      QuerySnapshot querySnapshot =
+          await _categoriesCollection.orderBy('name').get();
+      return querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return Category(
+          id: doc.id,
+          name: data['name'] ?? '',
+          icon: data['icon'],
+        );
+      }).toList();
+    } catch (e) {
+      throw Exception('Không thể lấy danh sách danh mục: $e');
+    }
   }
 
   /// **Xóa danh mục**
-  Future<int> deleteCategory(int id) async {
-    final db = await database;
-    return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+  Future<void> deleteCategory(String id) async {
+    try {
+      if (id.isEmpty) {
+        throw Exception('ID danh mục không hợp lệ');
+      }
+      await _categoriesCollection.doc(id).delete();
+    } catch (e) {
+      throw Exception('Không thể xóa danh mục: $e');
+    }
   }
 
   /// **Xóa toàn bộ danh mục**
   Future<void> clearCategories() async {
-    final db = await database;
-    await db.delete('categories');
+    try {
+      WriteBatch batch = _firestore.batch();
+      QuerySnapshot querySnapshot = await _categoriesCollection.get();
+
+      for (var doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Không thể xóa toàn bộ danh mục: $e');
+    }
   }
 
-  /// **Đóng Database**
-  Future<void> close() async {
-    final db = await _database;
-    if (db != null) {
-      await db.close();
+  /// **Lấy một danh mục theo ID**
+  Future<Category?> getCategoryById(String id) async {
+    try {
+      if (id.isEmpty) {
+        throw Exception('ID danh mục không hợp lệ');
+      }
+
+      DocumentSnapshot doc = await _categoriesCollection.doc(id).get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return Category(
+          id: doc.id,
+          name: data['name'] ?? '',
+          icon: data['icon'],
+        );
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Không thể lấy danh mục: $e');
+    }
+  }
+
+  /// **Lắng nghe sự thay đổi của danh mục theo thời gian thực**
+  Stream<List<Category>> watchCategories() {
+    return _categoriesCollection.orderBy('name').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data();
+        return Category(
+          id: doc.id,
+          name: data['name'] ?? '',
+          icon: data['icon'],
+        );
+      }).toList();
+    });
+  }
+
+  /// **Tìm kiếm danh mục theo tên**
+  Future<List<Category>> searchCategories(String keyword) async {
+    try {
+      // Firestore không hỗ trợ tìm kiếm contains trực tiếp
+      // Nên ta lấy tất cả rồi lọc ở client
+      QuerySnapshot querySnapshot = await _categoriesCollection.get();
+
+      return querySnapshot.docs
+          .map((doc) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            return Category(
+              id: doc.id,
+              name: data['name'] ?? '',
+              icon: data['icon'],
+            );
+          })
+          .where(
+            (category) =>
+                category.name.toLowerCase().contains(keyword.toLowerCase()),
+          )
+          .toList();
+    } catch (e) {
+      throw Exception('Không thể tìm kiếm danh mục: $e');
     }
   }
 }

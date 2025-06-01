@@ -6,54 +6,84 @@ class CategoryRepository {
 
   CategoryRepository(this.categoryDB);
 
-  // Cập nhật phương thức này để trả về Category thay vì chỉ trả về bool
+  /// Thêm danh mục mới
   Future<Category> addCategory(Category category) async {
-    int insertedId = await categoryDB.insertCategory(category);
+    String docId = await categoryDB.insertCategory(category);
 
-    if (insertedId > 0) {
-      // Tạo bản sao của category với ID được gán từ cơ sở dữ liệu
+    if (docId.isNotEmpty) {
       return Category(
-        id: insertedId,
+        id: docId,
         name: category.name,
-        // Thêm các trường khác nếu model Category của bạn có thêm
+        icon: category.icon,
+        imageUrl:
+            category.imageUrl, // Return imageUrl as part of the category object
       );
     }
 
     throw Exception('Không thể thêm danh mục');
   }
 
+  /// Lấy tất cả danh mục
   Future<List<Category>> getCategories() async {
     return await categoryDB.fetchCategories();
   }
 
+  /// Cập nhật danh mục
   Future<bool> updateCategory(Category category) async {
-    if (category.id == null) {
+    if (category.id == null || category.id!.isEmpty) {
       throw Exception('Không thể cập nhật - ID danh mục không hợp lệ');
     }
 
-    int result = await categoryDB.updateCategory(category);
-    return result > 0;
+    try {
+      await categoryDB.updateCategory(category);
+      return true;
+    } catch (e) {
+      print('Lỗi khi cập nhật danh mục: $e');
+      return false;
+    }
   }
 
-  Future<bool> deleteCategory(int id) async {
-    if (id == null) {
+  /// Xóa danh mục
+  Future<bool> deleteCategory(String id) async {
+    if (id.isEmpty) {
       throw Exception('Không thể xóa - ID không hợp lệ');
     }
 
-    int result = await categoryDB.deleteCategory(id);
-
-    if (result <= 0) {
-      throw Exception('Không thể xóa danh mục với ID: $id');
+    try {
+      await categoryDB.deleteCategory(id);
+      return true;
+    } catch (e) {
+      print('Lỗi khi xóa danh mục: $e');
+      return false;
     }
-
-    return result > 0;
   }
 
-  // Phương thức để kiểm tra một danh mục có tồn tại không
-  Future<bool> categoryExists(int id) async {
-    if (id == null) return false;
+  /// Kiểm tra danh mục tồn tại
+  Future<bool> categoryExists(String id) async {
+    if (id.isEmpty) return false;
 
-    List<Category> categories = await getCategories();
-    return categories.any((category) => category.id == id);
+    Category? category = await categoryDB.getCategoryById(id);
+    return category != null;
+  }
+
+  /// Tìm kiếm danh mục theo tên
+  Future<List<Category>> searchCategories(String keyword) async {
+    if (keyword.isEmpty) {
+      return await getCategories();
+    }
+    return await categoryDB.searchCategories(keyword);
+  }
+
+  /// Lấy một danh mục theo ID
+  Future<Category?> getCategoryById(String id) async {
+    if (id.isEmpty) {
+      throw Exception('ID danh mục không hợp lệ');
+    }
+    return await categoryDB.getCategoryById(id);
+  }
+
+  /// Lấy stream danh mục để lắng nghe thay đổi
+  Stream<List<Category>> watchCategories() {
+    return categoryDB.watchCategories();
   }
 }

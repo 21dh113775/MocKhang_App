@@ -1,113 +1,118 @@
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/category_model.dart';
-import 'package:mockhang_app/user/pages/category-products.dart';
+import 'dart:io';
 
 class CategoryItemCard extends StatelessWidget {
   final Category category;
 
   const CategoryItemCard({Key? key, required this.category}) : super(key: key);
 
-  // Hàm xác định icon dựa trên tên hoặc id của danh mục
-  IconData getCategoryIcon(Category category) {
-    // Sử dụng tên danh mục để xác định icon
-    final name = category.name.toLowerCase();
-
-    if (name.contains('đá')) return Icons.diamond_outlined;
-    if (name.contains('tượng')) return Icons.emoji_objects_outlined;
-    if (name.contains('vòng')) return Icons.watch;
-    if (name.contains('phong thuỷ')) return Icons.filter_vintage;
-    if (name.contains('thỉnh')) return Icons.local_offer_outlined;
-    if (name.contains('chuông')) return Icons.notifications_active_outlined;
-    if (name.contains('tỳ hưu')) return Icons.pets_outlined;
-    if (name.contains('phật')) return Icons.self_improvement;
-    if (name.contains('thiềm thừ')) return Icons.spa_outlined;
-    if (name.contains('charm')) return Icons.star_outline;
-    if (name.contains('bùa')) return Icons.security;
-    if (name.contains('dây')) return Icons.link;
-    if (name.contains('vật phẩm')) return Icons.card_giftcard;
-
-    // Icon mặc định nếu không khớp
-    return Icons.category_outlined;
-  }
-
-  // Hàm lấy màu gradient dựa trên category
-  List<Color> getCategoryGradient(Category category) {
-    // Tạo màu gradient ngẫu nhiên nhưng ổn định dựa trên id
-    final categoryId = category.id ?? 0;
-    final colorSeed = categoryId % 5;
-
-    switch (colorSeed) {
-      case 0:
-        return [Colors.brown.shade300, Colors.brown.shade500];
-      case 1:
-        return [Colors.brown.shade300, Colors.brown.shade700];
-      case 2:
-        return [Colors.brown.shade300, Colors.brown.shade700];
-      case 3:
-        return [Colors.brown.shade300, Colors.brown.shade500];
-      case 4:
-        return [Colors.brown.shade300, Colors.brown.shade700];
-      default:
-        return [Colors.brown.shade300, Colors.brown.shade700];
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final IconData icon = getCategoryIcon(category);
-    final List<Color> gradientColors = getCategoryGradient(category);
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CategoryProductsPage(category: category),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, 5),
           ),
-        );
-      },
-      child: SizedBox(
-        width: 80,
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min, // Đảm bảo chỉ chiếm không gian cần thiết
-          children: [
-            Container(
-              width: 65,
-              height: 65,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradientColors[1].withOpacity(0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Center(child: Icon(icon, color: Colors.white, size: 30)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Phần hiển thị hình ảnh
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              color:
+                  category.imageUrl == null
+                      ? Colors.brown.withOpacity(0.1)
+                      : Colors.transparent,
             ),
-            const SizedBox(height: 4), // Giảm khoảng cách
-            Flexible(
-              child: Text(
-                category.name,
-                style: const TextStyle(
-                  fontSize: 11, // Giảm kích thước font
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            child: _buildCategoryImage(),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Tên danh mục
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              category.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.brown[800],
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryImage() {
+    // Nếu không có ảnh, hiển thị icon
+    if (category.imageUrl == null) {
+      return Center(
+        child: Icon(Icons.category_rounded, size: 50, color: Colors.brown),
+      );
+    }
+
+    // Nếu là đường link mạng
+    if (category.imageUrl!.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.network(
+          category.imageUrl!,
+          fit: BoxFit.cover,
+          width: 100,
+          height: 100,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                color: Colors.brown,
+                value:
+                    loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Center(
+              child: Icon(Icons.error_outline, color: Colors.red, size: 50),
+            );
+          },
         ),
+      );
+    }
+
+    // Nếu là file local
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15),
+      child: Image.file(
+        File(category.imageUrl!),
+        fit: BoxFit.cover,
+        width: 100,
+        height: 100,
+        errorBuilder: (context, error, stackTrace) {
+          return Center(
+            child: Icon(Icons.error_outline, color: Colors.red, size: 50),
+          );
+        },
       ),
     );
   }

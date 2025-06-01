@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/category_model.dart';
 import 'package:mockhang_app/admin/data/models/product_model.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
-import 'package:mockhang_app/user/pages/product_detail_page_user.dart';
-import 'package:mockhang_app/user/widgets/product_item_card.dart';
+import 'package:mockhang_app/user/pages/home/productsection/product_detail_page_user.dart';
+import 'package:mockhang_app/user/pages/product_item_card.dart';
 import 'package:provider/provider.dart';
 
 class CategoryProductsPage extends StatefulWidget {
@@ -134,7 +134,7 @@ class _CategoryProductsPageState extends State<CategoryProductsPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProductDetailPageUser(product: product),
+                  builder: (context) => ProductDetailPage(product: product),
                 ),
               );
             },
@@ -221,20 +221,22 @@ class _CategoryProductsPageState extends State<CategoryProductsPage> {
         Navigator.pop(context);
         setState(() {
           if (title == 'Giá: Thấp đến cao') {
-            _categoryProducts.sort((a, b) => a.price.compareTo(b.price));
+            _categoryProducts.sort(
+              (a, b) => (a.price ?? 0).compareTo(b.price ?? 0),
+            );
           } else if (title == 'Giá: Cao đến thấp') {
-            _categoryProducts.sort((a, b) => b.price.compareTo(a.price));
+            _categoryProducts.sort(
+              (a, b) => (b.price ?? 0).compareTo(a.price ?? 0),
+            );
           } else if (title == 'Mới nhất') {
-            // Giả sử ID lớn hơn là sản phẩm mới hơn
             _categoryProducts.sort((a, b) {
-              // Xử lý null safety cho id
-              final aId = a.id ?? 0;
-              final bId = b.id ?? 0;
+              final aId = int.tryParse(a.id ?? '0') ?? 0;
+              final bId = int.tryParse(b.id ?? '0') ?? 0;
               return bId.compareTo(aId);
             });
           } else if (title == 'Bán chạy nhất') {
             _categoryProducts.sort(
-              (a, b) => b.soldQuantity.compareTo(a.soldQuantity),
+              (a, b) => (b.soldQuantity ?? 0).compareTo(a.soldQuantity ?? 0),
             );
           }
         });
@@ -371,7 +373,7 @@ class ProductSearchDelegate extends SearchDelegate<Product?> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ProductDetailPageUser(product: product),
+                builder: (context) => ProductDetailPage(product: product),
               ),
             );
           },

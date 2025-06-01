@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,39 +7,90 @@ import 'package:mockhang_app/admin/data/data_sources/category_db.dart';
 import 'package:mockhang_app/admin/data/data_sources/product_db.dart';
 import 'package:mockhang_app/admin/data/repositories/category_repository.dart';
 import 'package:mockhang_app/admin/data/repositories/product_repository.dart';
+import 'package:mockhang_app/admin/data/repositories/product_repository.dart'
+    as product_repo;
+import 'package:mockhang_app/admin/pages/notifications_page_admin.dart';
+import 'package:mockhang_app/admin/providers/cart_provider.dart';
 import 'package:mockhang_app/admin/providers/category_provider.dart';
 import 'package:mockhang_app/admin/providers/discount_provider.dart';
+import 'package:mockhang_app/admin/providers/favorite_provider.dart';
+import 'package:mockhang_app/admin/providers/order_provider.dart';
 import 'package:mockhang_app/admin/providers/product_provider.dart';
+import 'package:mockhang_app/admin/providers/user_provider.dart';
 import 'package:mockhang_app/auth/auth_service.dart';
 import 'package:mockhang_app/auth/login_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
-import 'package:mockhang_app/user/pages/home_screen.dart';
+import 'package:mockhang_app/user/pages/AccountUser/account_page_user.dart';
+import 'package:mockhang_app/user/pages/cart/cart_page.dart';
+import 'package:mockhang_app/user/pages/checkout/checkout_page.dart';
+import 'package:mockhang_app/user/pages/checkout/order/order_history_page.dart';
+import 'package:mockhang_app/user/pages/consultation_page.dart';
+import 'package:mockhang_app/user/pages/favorite_page.dart';
+import 'package:mockhang_app/user/pages/home/home_screen.dart';
 import 'package:mockhang_app/user/pages/categories_page.dart';
-import 'package:mockhang_app/user/pages/discount_page_user.dart';
+import 'package:mockhang_app/user/pages/discount/discount_page_user.dart';
 import 'package:mockhang_app/admin/pages/product/product_page.dart';
+import 'package:mockhang_app/user/pages/notifications_page_user.dart';
+import 'package:mockhang_app/user/pages/product_page.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  final productDatabase = ProductDatabase.instance;
+Future<void> initializeProviders() async {
+  // Initialize database instances first
+  final productDatabase = product_repo.ProductDatabase.instance;
   final categoryDatabase = CategoryDatabase.instance;
-  await productDatabase.database;
-  await categoryDatabase.database;
+  // Khởi tạo Firebase Functions
+  FirebaseFunctions.instance.useFunctionsEmulator('localhost', 5001);
+
+  await categoryDatabase.fetchCategories();
+
+  // Pre-initialize UserProvider to avoid build-phase issues
+  final userProvider = UserProvider();
+  await userProvider.initialize();
+
+  return;
+}
+
+void main() async {
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize databases and providers before runApp
+  await initializeProviders();
+
+  // Run the app with providers
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
           create:
-              (context) => ProductProvider(ProductRepository(productDatabase)),
+              (context) =>
+                  ProductProvider(product_repo.ProductDatabase.instance),
         ),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(
           create:
-              (context) =>
-                  CategoryProvider(CategoryRepository(categoryDatabase)),
+              (context) => CategoryProvider(
+                CategoryRepository(CategoryDatabase.instance),
+              ),
         ),
         ChangeNotifierProvider(create: (context) => DiscountProvider()),
+        ChangeNotifierProvider(create: (context) => FavoriteProvider()),
+        ChangeNotifierProvider(create: (context) => OrderProvider()),
+        // Initialize UserProvider lazily to prevent build-phase notifications
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = UserProvider();
+            // Initialize in the next frame to avoid build-phase notifications
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              provider.initialize();
+            });
+            return provider;
+          },
+        ),
       ],
       child: MyApp(),
     ),
@@ -53,7 +105,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mockhang App',
       debugShowCheckedModeBanner: false,
-      theme: _customTheme(), // Apply the custom theme
+      theme: _customTheme(),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
@@ -70,13 +122,13 @@ class MyApp extends StatelessWidget {
   ThemeData _customTheme() {
     return ThemeData(
       buttonTheme: ButtonThemeData(
-        buttonColor: Colors.brown, // Brown button color
-        textTheme: ButtonTextTheme.primary, // White text on the button
+        buttonColor: Colors.brown,
+        textTheme: ButtonTextTheme.primary,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: Colors.brown, // Text color
+          backgroundColor: Colors.brown,
         ),
       ),
       fontFamily: 'Roboto',
@@ -92,17 +144,58 @@ Map<String, WidgetBuilder> appRoutes = {
   "/register": (context) => SignupScreen(),
   "/admin_home": (context) => AdminHomeScreen(),
   "/user_home": (context) => HomeScreen(),
-  "/products": (context) => ProductPage(),
+  "/products": (context) => ProductPageAdmin(),
   "/categories": (context) => CategoriesPage(),
   "/discount": (context) => DiscountPageUser(),
+  "/cart": (context) => CartPage(),
+  "/products_user": (context) => ProductPageUser(),
+  "/consultation": (context) => ConsultationPage(),
+  "/checkout": (context) => CheckoutPage(),
+  "/favorite": (context) => FavoritePage(),
+  "/account_page":
+      (context) => AccountPageUser(), // Fixed route name with slash
+  // Thêm route cho các trang Notifications
+  "/notifications_admin": (context) => NotificationsPageAdmin(),
+  "/notifications": (context) => NotificationsPageUser(),
+  "/order-history": (context) => OrderHistoryPage(),
 };
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({Key? key}) : super(key: key);
 
+  // Hàm kiểm tra quyền admin của người dùng
+  Future<void> checkAdminStatus() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        String? idToken = await user.getIdToken();
+
+        if (idToken != null) {
+          // Kiểm tra quyền admin nếu idToken không phải là null
+          if (idToken.contains('admin')) {
+            print("User is an admin");
+          } else {
+            print("User is not an admin");
+          }
+        } else {
+          print("ID Token is null");
+        }
+      }
+    } catch (e) {
+      print("Error checking admin status: $e");
+    }
+    ;
+  }
+
   @override
   Widget build(BuildContext context) {
     final AuthService _authService = AuthService();
+
+    // Access UserProvider with listen: false to avoid rebuild loops
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<UserProvider>(context, listen: false).initialize();
+    });
 
     return StreamBuilder<User?>(
       stream: _authService.authStateChanges,

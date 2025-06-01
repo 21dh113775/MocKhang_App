@@ -68,6 +68,8 @@ class DrawerWidget extends StatelessWidget {
                       Navigator.pop(context);
                       if (onHomeTap != null) {
                         onHomeTap!();
+                      } else {
+                        Navigator.pushNamed(context, '/user_home');
                       }
                     },
                   ),
@@ -79,8 +81,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onCategoryTap != null) {
                         onCategoryTap!();
                       } else {
-                        // Mặc định: Điều hướng đến trang danh mục
-                        Navigator.pushNamed(context, '/categories');
+                        Navigator.pushNamed(context, '/');
                       }
                     },
                   ),
@@ -92,12 +93,9 @@ class DrawerWidget extends StatelessWidget {
                       if (onCartTap != null) {
                         onCartTap!();
                       } else {
-                        // Mặc định: Điều hướng đến trang giỏ hàng
                         Navigator.pushNamed(context, '/cart');
                       }
                     },
-                    showBadge: true,
-                    badgeCount: 3, // Có thể thay đổi thành tham số động
                   ),
                   _buildMenuItem(
                     icon: Icons.favorite_rounded,
@@ -107,7 +105,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onWishlistTap != null) {
                         onWishlistTap!();
                       } else {
-                        Navigator.pushNamed(context, '/wishlist');
+                        Navigator.pushNamed(context, '/favorite');
                       }
                     },
                   ),
@@ -140,7 +138,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onContactTap != null) {
                         onContactTap!();
                       } else {
-                        Navigator.pushNamed(context, '/contact');
+                        Navigator.pushNamed(context, '/consultation');
                       }
                     },
                   ),
@@ -171,7 +169,7 @@ class DrawerWidget extends StatelessWidget {
                   else
                     _buildMenuItem(
                       icon: Icons.login_rounded,
-                      title: 'Đăng Xuất',
+                      title: 'Đăng xuất',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.pushNamed(context, '/login');
@@ -417,7 +415,7 @@ class DrawerWidget extends StatelessWidget {
   }
 }
 
-// Extension cho Badge widget nếu không có sẵn trong dependencies
+// Badge widget (nếu chưa có trong dependencies)
 class Badge extends StatelessWidget {
   final Widget child;
   final Widget label;

@@ -2,89 +2,104 @@ import 'package:circle_nav_bar/circle_nav_bar.dart';
 import 'package:flutter/material.dart';
 
 class BottomNavBarWidget extends StatelessWidget {
+  // Constant values
+  static const List<String> _labels = [
+    'Trang Chủ',
+    'Khuyến mãi',
+    'Liên hệ',
+    'Giỏ hàng',
+    'Tài Khoản',
+  ];
+
+  static const Color _activeColor = Colors.white;
+  static const Color _inactiveColor = Colors.brown;
+  static const Color _shadowColor = Colors.brown;
+
+  // Configuration parameters
   final int currentIndex;
   final ValueChanged<int> onItemSelected;
-  final bool showLabels; // Thêm tham số mới
+  final bool showLabels;
 
   const BottomNavBarWidget({
     Key? key,
     required this.currentIndex,
     required this.onItemSelected,
-    this.showLabels = true, // Mặc định là hiển thị nhãn
+    this.showLabels = true,
   }) : super(key: key);
+
+  // Icons configuration
+  List<Icon> get _activeIcons => [
+    Icon(Icons.home, color: _activeColor),
+    Icon(Icons.discount_sharp, color: _activeColor),
+    Icon(Icons.phone_callback, color: _activeColor),
+    Icon(Icons.shopping_cart, color: _activeColor),
+    Icon(Icons.person, color: _activeColor),
+  ];
+
+  List<Icon> get _inactiveIcons => [
+    Icon(Icons.home_outlined, color: _inactiveColor),
+    Icon(Icons.discount_outlined, color: _inactiveColor),
+    Icon(Icons.phone_callback_outlined, color: _inactiveColor),
+    Icon(Icons.shopping_cart_outlined, color: _inactiveColor),
+    Icon(Icons.person_outline, color: _inactiveColor),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // Danh sách nhãn cho các tab
-    final labels = [
-      'Trang Chủ',
-      'Khuyến mãi',
-      'Liên hệ',
-      'Giỏ hàng',
-      'Tài Khoản',
-    ];
-
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        CircleNavBar(
-          // Các thuộc tính chính của CircleNavBar
-          activeIcons: [
-            Icon(Icons.home, color: Colors.white),
-            Icon(Icons.discount_sharp, color: Colors.white),
-            Icon(Icons.phone_callback, color: Colors.white),
-            Icon(Icons.shopping_cart, color: Colors.white),
-            Icon(Icons.person, color: Colors.white),
-          ],
-          inactiveIcons: [
-            Icon(Icons.home_outlined, color: Colors.brown),
-            Icon(Icons.discount_outlined, color: Colors.brown),
-            Icon(Icons.phone_callback_outlined, color: Colors.brown),
-            Icon(Icons.shopping_cart_outlined, color: Colors.brown),
-            Icon(Icons.person_outline, color: Colors.brown),
-          ],
-          color: Colors.white,
-          height: 60,
-          circleWidth: 60,
-          activeIndex: currentIndex,
-          onTap: (index) {
-            // Gọi callback để cập nhật index
-            onItemSelected(index);
-          },
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
-          cornerRadius: const BorderRadius.only(
-            topLeft: Radius.circular(8),
-            topRight: Radius.circular(8),
-            bottomRight: Radius.circular(24),
-            bottomLeft: Radius.circular(24),
-          ),
-          shadowColor: Colors.brown.withOpacity(0.3),
-          elevation: 10,
-          circleShadowColor: Colors.brown.withOpacity(0.3),
-          circleColor: Colors.brown,
-        ),
-        // Chỉ hiển thị nhãn nếu showLabels = true
-        if (showLabels)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(5, (index) {
-                return Text(
-                  labels[index],
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: currentIndex == index ? Colors.brown : Colors.grey,
-                    fontWeight:
-                        currentIndex == index
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                  ),
-                );
-              }),
-            ),
-          ),
-      ],
+      children: [_buildCircleNavBar(), if (showLabels) _buildLabels(context)],
+    );
+  }
+
+  Widget _buildCircleNavBar() {
+    return CircleNavBar(
+      activeIcons: _activeIcons,
+      inactiveIcons: _inactiveIcons,
+      color: Colors.white,
+      height: 60,
+      circleWidth: 60,
+      activeIndex: currentIndex,
+      onTap: onItemSelected,
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
+      cornerRadius: _buildCornerRadius(),
+      shadowColor: _shadowColor.withOpacity(0.3),
+      elevation: 10,
+      circleShadowColor: _shadowColor.withOpacity(0.3),
+      circleColor: _shadowColor,
+    );
+  }
+
+  BorderRadius _buildCornerRadius() {
+    return const BorderRadius.only(
+      topLeft: Radius.circular(8),
+      topRight: Radius.circular(8),
+      bottomRight: Radius.circular(24),
+      bottomLeft: Radius.circular(24),
+    );
+  }
+
+  Widget _buildLabels(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(_labels.length, (index) {
+          return _buildLabelItem(index, context);
+        }),
+      ),
+    );
+  }
+
+  Widget _buildLabelItem(int index, BuildContext context) {
+    final isActive = currentIndex == index;
+    return Text(
+      _labels[index],
+      style: TextStyle(
+        fontSize: 10,
+        color: isActive ? _inactiveColor : Colors.grey,
+        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+      ),
     );
   }
 }

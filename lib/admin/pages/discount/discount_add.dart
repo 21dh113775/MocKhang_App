@@ -1,305 +1,348 @@
+import 'package:barcode_widget/barcode_widget.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/data/models/discount_model.dart';
 import 'package:mockhang_app/admin/providers/discount_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
-class AddDiscountPage extends StatefulWidget {
-  const AddDiscountPage({Key? key}) : super(key: key);
-
+class DiscountAddPageAdmin extends StatefulWidget {
   @override
-  _AddDiscountPageState createState() => _AddDiscountPageState();
+  _DiscountAddPageAdminState createState() => _DiscountAddPageAdminState();
 }
 
-class _AddDiscountPageState extends State<AddDiscountPage> {
+class _DiscountAddPageAdminState extends State<DiscountAddPageAdmin> {
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController valueController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController barcodeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _valueController = TextEditingController();
 
-  String _type = 'percentage'; // mặc định là giảm giá theo %
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
-  File? _imageFile;
-  String? _imageUrl;
+  String selectedType = 'Giảm theo phần trăm';
+  DateTime? selectedStartDateTime;
+  DateTime? selectedEndDateTime;
+  String? generatedBarcode;
 
-  bool _isSubmitting = false;
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-
-      // Trong thực tế, bạn sẽ cần upload ảnh lên server và lấy URL
-      // _imageUrl = await uploadImageToServer(_imageFile);
-      // Giả định rằng có một hàm uploadImageToServer để xử lý việc này
-
-      // Giả định tạm thời, trong ứng dụng thực tế cần thay thế logic này
-      _imageUrl = pickedFile.path;
-    }
-  }
-
-  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: isStartDate ? _startDate : _endDate,
-      firstDate: isStartDate ? DateTime.now() : _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStartDate) {
-          _startDate = picked;
-          // Đảm bảo _endDate không sớm hơn _startDate
-          if (_endDate.isBefore(_startDate)) {
-            _endDate = _startDate.add(const Duration(days: 1));
-          }
-        } else {
-          _endDate = picked;
-        }
-      });
-    }
-  }
-
-  void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSubmitting = true;
-      });
-
-      try {
-        // Parse giá trị từ controller
-        final double value = double.parse(
-          _valueController.text.replaceAll(',', ''),
-        );
-
-        // Tạo model khuyến mãi mới
-        final newDiscount = DiscountModel(
-          id: '', // ID sẽ được tạo trong repository
-          name: _nameController.text.trim(),
-          type: _type,
-          value: value,
-          startDate: _startDate.millisecondsSinceEpoch,
-          endDate: _endDate.millisecondsSinceEpoch,
-          imageUrl: _imageUrl,
-        );
-
-        // Lưu khuyến mãi
-        await Provider.of<DiscountProvider>(
-          context,
-          listen: false,
-        ).addDiscount(newDiscount);
-
-        // Quay lại trang trước
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      } catch (e) {
-        // Hiển thị thông báo lỗi
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-          });
-        }
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _valueController.dispose();
-    super.dispose();
-  }
+  final List<String> discountTypes = [
+    'Giảm theo phần trăm',
+    'Giảm theo số tiền cố định',
+    'Miễn phí vận chuyển',
+    'Mua 1 tặng 1',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Thêm khuyến mãi mới')),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(title: Text("Tạo Khuyến Mãi Mới")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: ListView(
             children: [
-              // Tên khuyến mãi
               TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên khuyến mãi',
-                  border: OutlineInputBorder(),
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Tên Khuyến Mãi',
+                  prefixIcon: Icon(Icons.label_important),
                 ),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
+                  if (value == null || value.isEmpty) {
                     return 'Vui lòng nhập tên khuyến mãi';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Loại khuyến mãi
-              const Text('Loại khuyến mãi', style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(
-                    value: 'percentage',
-                    label: Text('Giảm giá theo %'),
-                    icon: Icon(Icons.percent),
-                  ),
-                  ButtonSegment(
-                    value: 'fixed',
-                    label: Text('Giảm giá cố định'),
-                    icon: Icon(Icons.money),
-                  ),
-                ],
-                selected: {_type},
-                onSelectionChanged: (Set<String> newSelection) {
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                decoration: InputDecoration(
+                  labelText: 'Loại Khuyến Mãi',
+                  prefixIcon: Icon(Icons.category),
+                ),
+                items:
+                    discountTypes.map((String type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      );
+                    }).toList(),
+                onChanged: (value) {
                   setState(() {
-                    _type = newSelection.first;
-                    // Xóa giá trị cũ khi đổi loại
-                    _valueController.clear();
+                    selectedType = value!;
                   });
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
               // Giá trị khuyến mãi
               TextFormField(
-                controller: _valueController,
+                controller: valueController,
                 decoration: InputDecoration(
-                  labelText:
-                      _type == 'percentage'
-                          ? 'Phần trăm giảm giá (%)'
-                          : 'Số tiền giảm giá (VNĐ)',
-                  border: const OutlineInputBorder(),
-                  prefixIcon:
-                      _type == 'percentage'
-                          ? const Icon(Icons.percent)
-                          : const Icon(Icons.attach_money),
+                  labelText: 'Giá trị Khuyến Mãi',
+                  prefixIcon: Icon(Icons.money),
+                  suffixText: selectedType == 'Giảm theo phần trăm' ? '%' : 'đ',
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Vui lòng nhập giá trị';
                   }
-
-                  final double? parsedValue = double.tryParse(
-                    value.replaceAll(',', ''),
-                  );
-                  if (parsedValue == null) {
-                    return 'Giá trị không hợp lệ';
+                  final numValue = double.tryParse(value);
+                  if (numValue == null) {
+                    return 'Giá trị phải là số';
                   }
-
-                  if (_type == 'percentage' &&
-                      (parsedValue <= 0 || parsedValue > 100)) {
-                    return 'Phần trăm giảm giá phải từ 0-100%';
+                  if (selectedType == 'Giảm theo phần trăm' && numValue > 100) {
+                    return 'Phần trăm không được vượt quá 100%';
                   }
-
-                  if (_type == 'fixed' && parsedValue <= 0) {
-                    return 'Số tiền giảm giá phải lớn hơn 0';
-                  }
-
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // Ngày bắt đầu
-              ListTile(
-                title: const Text('Ngày bắt đầu'),
-                subtitle: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context, true),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
+              // Thời gian bắt đầu
+              _buildDateTimePicker(
+                label: 'Thời gian bắt đầu',
+                dateTime: selectedStartDateTime,
+                onDateTimeChanged: (DateTime picked) {
+                  setState(() {
+                    selectedStartDateTime = picked;
+                  });
+                },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // Ngày kết thúc
-              ListTile(
-                title: const Text('Ngày kết thúc'),
-                subtitle: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context, false),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
+              // Thời gian kết thúc
+              _buildDateTimePicker(
+                label: 'Thời gian kết thúc',
+                dateTime: selectedEndDateTime,
+                onDateTimeChanged: (DateTime picked) {
+                  setState(() {
+                    selectedEndDateTime = picked;
+                  });
+                },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // Hình ảnh khuyến mãi
-              const Text(
-                'Hình ảnh khuyến mãi (tùy chọn)',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
+              // Mã vạch
+              TextFormField(
+                controller: barcodeController,
+                decoration: InputDecoration(
+                  labelText: 'Mã Vạch (Tùy chọn)',
+                  prefixIcon: Icon(Icons.qr_code),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.grade_rounded),
+                    onPressed: _generateBarcode,
                   ),
-                  child:
-                      _imageFile != null
-                          ? ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.file(_imageFile!, fit: BoxFit.cover),
-                          )
-                          : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_photo_alternate,
-                                size: 50,
-                                color: Colors.grey.shade400,
-                              ),
-                              const Text('Nhấn để chọn ảnh'),
-                            ],
-                          ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 16),
 
-              // Nút lưu
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  child:
-                      _isSubmitting
-                          ? const CircularProgressIndicator()
-                          : const Text(
-                            'Lưu khuyến mãi',
-                            style: TextStyle(fontSize: 16),
-                          ),
+              // Mô tả
+              TextFormField(
+                controller: descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Mô Tả',
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+              ),
+              SizedBox(height: 16),
+
+              // Nút thêm khuyến mãi
+              ElevatedButton.icon(
+                onPressed: _addDiscount,
+                icon: Icon(Icons.add_circle_outline),
+                label: Text('Tạo Khuyến Mãi'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
+
+              // Hiển thị mã vạch (nếu có)
+              if (generatedBarcode != null) ...[
+                SizedBox(height: 16),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        "Mã Vạch Khuyến Mãi",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      BarcodeWidget(
+                        barcode: Barcode.code128(),
+                        data: generatedBarcode!,
+                        width: 250,
+                        height: 100,
+                        drawText: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  // Widget xây dựng picker ngày giờ
+  Widget _buildDateTimePicker({
+    required String label,
+    required DateTime? dateTime,
+    required Function(DateTime) onDateTimeChanged,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final pickedDateTime = await showDateTimePicker(context, dateTime);
+        if (pickedDateTime != null) {
+          onDateTimeChanged(pickedDateTime);
+        }
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(Icons.calendar_today),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          border: OutlineInputBorder(),
+        ),
+        child: Text(
+          dateTime != null
+              ? DateFormat('dd/MM/yyyy HH:mm').format(dateTime)
+              : 'Chưa chọn',
+          style: TextStyle(fontSize: 16),
+        ),
+      ),
+    );
+  }
+
+  // Hàm hiển thị picker ngày giờ
+  Future<DateTime?> showDateTimePicker(
+    BuildContext context,
+    DateTime? initialDateTime,
+  ) async {
+    return await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (context) {
+        DateTime? selectedDateTime = initialDateTime ?? DateTime.now();
+        return Container(
+          height: 300,
+          child: Column(
+            children: [
+              Expanded(
+                child: CupertinoDatePicker(
+                  initialDateTime: selectedDateTime,
+                  mode: CupertinoDatePickerMode.dateAndTime,
+                  onDateTimeChanged: (DateTime newDateTime) {
+                    selectedDateTime = newDateTime;
+                  },
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(selectedDateTime),
+                child: Text('Xác Nhận'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Hàm sinh mã vạch tự động
+  void _generateBarcode() {
+    final generatedCode = DateTime.now().millisecondsSinceEpoch.toString();
+    setState(() {
+      generatedBarcode = generatedCode;
+      barcodeController.text = generatedCode;
+    });
+  }
+
+  // Hàm thêm khuyến mãi
+  void _addDiscount() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Kiểm tra logic ngày giờ
+    if (selectedStartDateTime == null || selectedEndDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vui lòng chọn đầy đủ thời gian bắt đầu và kết thúc'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (selectedStartDateTime!.isAfter(selectedEndDateTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Thời gian bắt đầu phải trước thời gian kết thúc'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Hiển thị loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(child: CircularProgressIndicator()),
+    );
+
+    final discountProvider = Provider.of<DiscountProvider>(
+      context,
+      listen: false,
+    );
+
+    try {
+      final newDiscount = DiscountModel(
+        id: '',
+        name: nameController.text.trim(),
+        type: selectedType,
+        value: double.parse(valueController.text.trim()),
+        startDate: selectedStartDateTime!.millisecondsSinceEpoch,
+        endDate: selectedEndDateTime!.millisecondsSinceEpoch,
+        description: descriptionController.text.trim(),
+        barcode: generatedBarcode ?? barcodeController.text.trim(),
+      );
+
+      final createdDiscount = await discountProvider.addDiscount(newDiscount);
+
+      // Đóng loading dialog
+      Navigator.of(context).pop();
+
+      if (createdDiscount != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thêm khuyến mãi thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Quay lại trang trước
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể thêm khuyến mãi. Vui lòng thử lại.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Đóng loading dialog
+      Navigator.of(context).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

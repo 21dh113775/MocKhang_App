@@ -49,6 +49,25 @@ class AuthService {
     }
   }
 
+  Future<bool> loginAsAdmin(String email, String password) async {
+    try {
+      final dbHelper = DatabaseHelper();
+      bool isAdmin = await dbHelper.validateAdmin(email, password);
+
+      if (isAdmin) {
+        _isLocalAdminLoggedIn = true;
+        // Lưu trạng thái vào SharedPreferences nếu cần
+
+        // Trả về true nếu đăng nhập thành công
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Lỗi khi đăng nhập admin: $e');
+      return false;
+    }
+  }
+
   // Đăng nhập như admin từ SQLite
   Future<bool> signInAsLocalAdmin(String email, String password) async {
     try {
