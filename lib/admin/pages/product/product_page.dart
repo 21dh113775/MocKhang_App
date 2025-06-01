@@ -306,8 +306,8 @@ class _ProductPageAdminState extends State<ProductPageAdmin> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _primaryColor,
                             ),
-                            onPressed: _navigateToAddProduct,
-                            icon: const Icon(Icons.add, color: Colors.white),
+                           onPressed: _navigateToAddProduct,
+                             icon: const Icon(Icons.add, color: Colors.white),
                             label: const Text(
                               'Thêm sản phẩm mới',
                               style: TextStyle(color: Colors.white),
@@ -495,15 +495,15 @@ class _ProductPageAdminState extends State<ProductPageAdmin> {
                           Column(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.remove_red_eye,
-                                  color: _primaryColor,
-                                ),
-                                tooltip: 'Xem chi tiết',
-                                onPressed:
-                                    () => _navigateToProductDetail(product),
-                              ),
+                              // IconButton(
+                              //   icon: Icon(
+                              //     Icons.remove_red_eye,
+                              //     color: _primaryColor,
+                              //   ),
+                              //   tooltip: 'Xem chi tiết',
+                              //   onPressed:
+                              //       () => _navigateToProductDetail(product),
+                              // ),
                               IconButton(
                                 icon: const Icon(
                                   Icons.add_box,
@@ -513,15 +513,15 @@ class _ProductPageAdminState extends State<ProductPageAdmin> {
                                 onPressed:
                                     () => _showImportStockDialog(product),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.orange,
-                                ),
-                                tooltip: 'Sửa',
-                                onPressed:
-                                    () => _navigateToEditProduct(product),
-                              ),
+                              // IconButton(
+                              //   icon: const Icon(
+                              //     Icons.edit,
+                              //     color: Colors.orange,
+                              //   ),
+                              //   tooltip: 'Sửa',
+                              //   onPressed:
+                              //       () => _navigateToEditProduct(product),
+                              // ),
                               IconButton(
                                 icon: const Icon(
                                   Icons.delete,

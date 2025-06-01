@@ -68,6 +68,8 @@ class DrawerWidget extends StatelessWidget {
                       Navigator.pop(context);
                       if (onHomeTap != null) {
                         onHomeTap!();
+                      } else {
+                        Navigator.pushNamed(context, '/user_home');
                       }
                     },
                   ),
@@ -79,7 +81,7 @@ class DrawerWidget extends StatelessWidget {
                       if (onCategoryTap != null) {
                         onCategoryTap!();
                       } else {
-                        Navigator.pushNamed(context, '/categories');
+                        Navigator.pushNamed(context, '/');
                       }
                     },
                   ),

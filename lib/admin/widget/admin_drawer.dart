@@ -42,7 +42,7 @@ class AdminDrawer extends StatelessWidget {
           _buildDrawerItem(Icons.shopping_cart, "Đơn hàng", 5),
           Divider(),
           _buildDrawerItem(Icons.settings, "Cài đặt hệ thống", 6),
-          _buildDrawerItem(Icons.bar_chart, "Báo cáo & Thống kê", 7),
+          //_buildDrawerItem(Icons.bar_chart, "Báo cáo & Thống kê", 7),
           _buildDrawerItem(Icons.support_agent, "Hỗ trợ khách hàng", 8),
           _buildDrawerItem(Icons.discount, "Khuyến mãi", 9),
           _buildDrawerItem(Icons.attach_money, "Thanh toán & Doanh thu", 10),

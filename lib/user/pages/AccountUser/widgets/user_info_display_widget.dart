@@ -114,7 +114,8 @@ class UserInfoDisplay extends StatelessWidget {
           _buildSettingItem(
             icon: Icons.lock,
             title: 'Thay đổi mật khẩu',
-            onTap: () => onSettingTapped('password'),
+            onTap:
+                () => onSettingTapped('/lib/auth/forgot_password_screen.dart'),
           ),
           const Divider(height: 1, indent: 56),
           _buildSettingItem(

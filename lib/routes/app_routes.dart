@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mockhang_app/admin/adminscreen.dart';
 import 'package:mockhang_app/admin/pages/product/product_page.dart';
+import 'package:mockhang_app/auth/forgot_password_screen.dart';
 import 'package:mockhang_app/auth/login_screen.dart';
 import 'package:mockhang_app/auth/signup_screen.dart';
 import 'package:mockhang_app/user/pages/AccountUser/account_page_user.dart';
@@ -31,4 +32,5 @@ Map<String, WidgetBuilder> appRoutes = {
   "/account_page": (context) => AccountPageUser(),
   "/notifications": (context) => NotificationsPageUser(),
   "/order-history": (context) => OrderHistoryPage(),
+  "/forgotpassword": (context) => ForgotPasswordScreen(),
 };
